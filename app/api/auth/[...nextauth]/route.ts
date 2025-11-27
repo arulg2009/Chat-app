@@ -10,12 +10,19 @@ export const authOptions: AuthOptions = {
   adapter: PrismaAdapter(prisma),
   providers: [
     GoogleProvider({
-      clientId: process.env.GOOGLE_CLIENT_ID!,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+      clientId: process.env.GOOGLE_CLIENT_ID || "",
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET || "",
+      authorization: {
+        params: {
+          prompt: "consent",
+          access_type: "offline",
+          response_type: "code"
+        }
+      }
     }),
     GitHubProvider({
-      clientId: process.env.GITHUB_ID!,
-      clientSecret: process.env.GITHUB_SECRET!,
+      clientId: process.env.GITHUB_ID || "",
+      clientSecret: process.env.GITHUB_SECRET || "",
     }),
     CredentialsProvider({
       name: "credentials",
@@ -66,16 +73,23 @@ export const authOptions: AuthOptions = {
         session.user.id = token.sub!;
         
         // Update user status to online
-        await prisma.user.update({
-          where: { id: token.sub! },
-          data: { status: "online", lastSeen: new Date() },
-        });
+        try {
+          await prisma.user.update({
+            where: { id: token.sub! },
+            data: { status: "online", lastSeen: new Date() },
+          });
+        } catch (error) {
+          console.error("Error updating user status:", error);
+        }
       }
       return session;
     },
-    async jwt({ token, user }) {
+    async jwt({ token, user, account }) {
       if (user) {
         token.sub = user.id;
+      }
+      if (account) {
+        token.accessToken = account.access_token;
       }
       return token;
     },
@@ -84,10 +98,14 @@ export const authOptions: AuthOptions = {
     async signOut({ token }) {
       if (token?.sub) {
         // Update user status to offline
-        await prisma.user.update({
-          where: { id: token.sub },
-          data: { status: "offline", lastSeen: new Date() },
-        });
+        try {
+          await prisma.user.update({
+            where: { id: token.sub },
+            data: { status: "offline", lastSeen: new Date() },
+          });
+        } catch (error) {
+          console.error("Error updating user status on signout:", error);
+        }
       }
     },
   },
