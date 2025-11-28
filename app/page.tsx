@@ -267,8 +267,16 @@ export default function Home() {
                 AI Chat
               </span>
             </div>
+            <div className="text-center md:text-right">
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                Developed by <span className="font-semibold text-gray-800 dark:text-gray-200">Karthikeyan G</span>
+              </p>
+              <p className="text-xs text-gray-500 dark:text-gray-500">
+                Full Stack Developer • <a href="mailto:kaarthii009.g@gmail.com" className="text-blue-600 hover:underline">kaarthii009.g@gmail.com</a>
+              </p>
+            </div>
             <p className="text-sm text-gray-600 dark:text-gray-400">
-              &copy; 2025 AI Chat. Built with Next.js, NextAuth, and Anthropic Claude.
+              &copy; 2025 AI Chat. All rights reserved.
             </p>
           </div>
         </div>
