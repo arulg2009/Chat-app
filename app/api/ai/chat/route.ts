@@ -128,16 +128,25 @@ export async function POST(request: NextRequest) {
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      console.error('Anthropic API error:', errorData);
+      console.error('Anthropic API error:', response.status, errorData);
       
-      // Return fallback for API errors
-      const fallbackResponse = generateFallbackResponse(sanitizedMessage);
+      // Provide specific error messages for common issues
+      let errorMessage = "I'm having trouble connecting to my AI brain right now.";
+      if (response.status === 401) {
+        errorMessage = "API authentication failed. The API key may be invalid or expired.";
+      } else if (response.status === 429) {
+        errorMessage = "I'm receiving too many requests right now. Please wait a moment and try again.";
+      } else if (response.status === 500 || response.status === 503) {
+        errorMessage = "The AI service is temporarily unavailable. Please try again later.";
+      }
+      
       return NextResponse.json({
         success: true,
-        response: fallbackResponse,
+        response: `${errorMessage}\n\nIn the meantime, here's a fallback response:\n\n${generateFallbackResponse(sanitizedMessage)}`,
         isAI: true,
         timestamp: new Date().toISOString(),
         fallback: true,
+        error: errorData.error?.message || 'API error',
       });
     }
 
