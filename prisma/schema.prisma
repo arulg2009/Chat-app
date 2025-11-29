@@ -61,6 +61,8 @@ model User {
   receivedCalls       Call[]                 @relation("CallReceiver")
   typingIndicators    TypingIndicator[]
   readReceipts        ReadReceipt[]
+  sentChatRequests    ChatRequest[]          @relation("SentRequests")
+  receivedChatRequests ChatRequest[]         @relation("ReceivedRequests")
 }
 
 model VerificationToken {
@@ -168,4 +170,24 @@ model Call {
   @@index([initiatorId])
   @@index([receiverId])
   @@index([status])
+}
+
+// Chat Request model - users must send request before chatting
+model ChatRequest {
+  id          String   @id @default(cuid())
+  senderId    String
+  receiverId  String
+  status      String   @default("pending") // pending, accepted, rejected
+  message     String?  @db.Text // Optional message with request
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  respondedAt DateTime?
+
+  sender   User @relation("SentRequests", fields: [senderId], references: [id], onDelete: Cascade)
+  receiver User @relation("ReceivedRequests", fields: [receiverId], references: [id], onDelete: Cascade)
+
+  @@index([senderId])
+  @@index([receiverId])
+  @@index([status])
+  @@index([createdAt])
 }
