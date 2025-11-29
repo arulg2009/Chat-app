@@ -3,13 +3,14 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
-import { Eye, EyeOff, Mail, Lock, User, MessageCircle, Sparkles, Check, X } from "lucide-react";
+import { Eye, EyeOff, Mail, Lock, User, MessageCircle, Sparkles, Check, X, UserCircle } from "lucide-react";
 import Link from "next/link";
 
 export default function RegisterPage() {
   const router = useRouter();
   const [formData, setFormData] = useState({
-    name: "",
+    realName: "",
+    nickname: "",
     email: "",
     password: "",
     confirmPassword: "",
@@ -59,14 +60,26 @@ export default function RegisterPage() {
     setError("");
 
     // Validation
-    if (!formData.name.trim()) {
-      setError("Please enter your name");
+    if (!formData.realName.trim()) {
+      setError("Please enter your real name");
       setIsLoading(false);
       return;
     }
 
-    if (formData.name.trim().length < 2) {
-      setError("Name must be at least 2 characters");
+    if (formData.realName.trim().length < 2) {
+      setError("Real name must be at least 2 characters");
+      setIsLoading(false);
+      return;
+    }
+
+    if (!formData.nickname.trim()) {
+      setError("Please enter a nickname");
+      setIsLoading(false);
+      return;
+    }
+
+    if (formData.nickname.trim().length < 2) {
+      setError("Nickname must be at least 2 characters");
       setIsLoading(false);
       return;
     }
@@ -96,7 +109,8 @@ export default function RegisterPage() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          name: formData.name.trim(),
+          realName: formData.realName.trim(),
+          nickname: formData.nickname.trim(),
           email: formData.email.toLowerCase().trim(),
           password: formData.password,
         }),
@@ -159,26 +173,51 @@ export default function RegisterPage() {
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label
-              htmlFor="name"
+              htmlFor="realName"
               className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
             >
-              Full Name
+              Real Name <span className="text-xs text-gray-500">(for account recovery)</span>
             </label>
             <div className="relative">
               <User className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
               <input
-                id="name"
-                name="name"
+                id="realName"
+                name="realName"
                 type="text"
                 autoComplete="name"
                 required
-                value={formData.name}
+                value={formData.realName}
                 onChange={handleChange}
                 className="appearance-none block w-full pl-10 pr-3 py-3 border border-gray-300 dark:border-gray-700 rounded-lg shadow-sm placeholder-gray-400 dark:placeholder-gray-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
-                placeholder="John Doe"
+                placeholder="Your real full name"
                 disabled={isLoading}
               />
             </div>
+            <p className="mt-1 text-xs text-gray-500">Used to verify your identity if you forget your password</p>
+          </div>
+
+          <div>
+            <label
+              htmlFor="nickname"
+              className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+            >
+              Nickname <span className="text-xs text-gray-500">(visible to others)</span>
+            </label>
+            <div className="relative">
+              <UserCircle className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <input
+                id="nickname"
+                name="nickname"
+                type="text"
+                required
+                value={formData.nickname}
+                onChange={handleChange}
+                className="appearance-none block w-full pl-10 pr-3 py-3 border border-gray-300 dark:border-gray-700 rounded-lg shadow-sm placeholder-gray-400 dark:placeholder-gray-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                placeholder="CoolUser123"
+                disabled={isLoading}
+              />
+            </div>
+            <p className="mt-1 text-xs text-gray-500">This is how other users will see you</p>
           </div>
 
           <div>

@@ -42,7 +42,8 @@ model Session {
 
 model User {
   id            String    @id @default(cuid())
-  name          String?
+  name          String?   // This will store the nickname (display name)
+  realName      String?   // User's real full name (for password recovery)
   email         String?   @unique
   emailVerified DateTime?
   image         String?

@@ -16,10 +16,10 @@ function isValidEmail(email: string): boolean {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { email, password, name } = body;
+    const { email, password, realName, nickname } = body;
 
     // Validate required fields
-    if (!email || !password || !name) {
+    if (!email || !password || !realName || !nickname) {
       return NextResponse.json(
         { error: "All fields are required" },
         { status: 400 }
@@ -27,20 +27,36 @@ export async function POST(request: Request) {
     }
 
     // Sanitize inputs
-    const sanitizedName = sanitizeInput(name);
+    const sanitizedRealName = sanitizeInput(realName);
+    const sanitizedNickname = sanitizeInput(nickname);
     const sanitizedEmail = email.toLowerCase().trim();
 
-    // Validate name
-    if (sanitizedName.length < 2) {
+    // Validate real name
+    if (sanitizedRealName.length < 2) {
       return NextResponse.json(
-        { error: "Name must be at least 2 characters" },
+        { error: "Real name must be at least 2 characters" },
         { status: 400 }
       );
     }
 
-    if (sanitizedName.length > 100) {
+    if (sanitizedRealName.length > 100) {
       return NextResponse.json(
-        { error: "Name is too long" },
+        { error: "Real name is too long" },
+        { status: 400 }
+      );
+    }
+
+    // Validate nickname
+    if (sanitizedNickname.length < 2) {
+      return NextResponse.json(
+        { error: "Nickname must be at least 2 characters" },
+        { status: 400 }
+      );
+    }
+
+    if (sanitizedNickname.length > 50) {
+      return NextResponse.json(
+        { error: "Nickname is too long" },
         { status: 400 }
       );
     }
@@ -87,7 +103,8 @@ export async function POST(request: Request) {
     const user = await prisma.user.create({
       data: {
         email: sanitizedEmail,
-        name: sanitizedName,
+        name: sanitizedNickname, // nickname is the display name
+        realName: sanitizedRealName, // real name for account recovery
         password: hashedPassword,
         status: "offline",
       },
@@ -100,6 +117,7 @@ export async function POST(request: Request) {
         id: user.id,
         email: user.email,
         name: user.name,
+        realName: user.realName,
       },
     });
   } catch (error: any) {
