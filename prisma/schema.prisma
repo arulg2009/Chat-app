@@ -74,6 +74,7 @@ model User {
   createdGroups        Group[]                @relation("GroupCreator")
   groupMemberships     GroupMember[]
   groupMessages        GroupMessage[]
+  messageReactions     MessageReaction[]
 }
 
 model VerificationToken {
@@ -115,7 +116,7 @@ model ConversationUser {
 model Message {
   id             String   @id @default(cuid())
   content        String   @db.Text
-  type           String   @default("text") // text, image, file, audio, video, ai_response
+  type           String   @default("text") // text, image, file, audio, video
   senderId       String
   conversationId String
   createdAt      DateTime @default(now())
@@ -123,17 +124,35 @@ model Message {
   replyToId      String?
   isEdited       Boolean  @default(false)
   isDeleted      Boolean  @default(false)
-  metadata       Json?    // For file info, AI context, etc.
+  isForwarded    Boolean  @default(false)
+  isStarred      Boolean  @default(false)
+  metadata       Json?    // For file info, voice duration, etc.
 
-  sender       User          @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
-  conversation Conversation  @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  replyTo      Message?      @relation("MessageReplies", fields: [replyToId], references: [id])
-  replies      Message[]     @relation("MessageReplies")
+  sender       User              @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
+  conversation Conversation      @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  replyTo      Message?          @relation("MessageReplies", fields: [replyToId], references: [id])
+  replies      Message[]         @relation("MessageReplies")
   readReceipts ReadReceipt[]
+  reactions    MessageReaction[]
 
   @@index([conversationId])
   @@index([senderId])
   @@index([createdAt])
+}
+
+model MessageReaction {
+  id        String   @id @default(cuid())
+  emoji     String
+  userId    String
+  messageId String
+  createdAt DateTime @default(now())
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, messageId, emoji])
+  @@index([messageId])
+  @@index([userId])
 }
 
 model ReadReceipt {
