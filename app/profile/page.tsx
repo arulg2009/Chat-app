@@ -31,6 +31,11 @@ import {
   Upload,
   Check,
   X,
+  AlertTriangle,
+  Circle,
+  Moon,
+  Sun,
+  Monitor,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
@@ -52,6 +57,13 @@ interface ProfileData {
   status: string;
   createdAt: string;
 }
+
+const STATUS_OPTIONS = [
+  { value: "online", label: "Online", color: "bg-green-500" },
+  { value: "away", label: "Away", color: "bg-yellow-500" },
+  { value: "busy", label: "Busy", color: "bg-red-500" },
+  { value: "invisible", label: "Invisible", color: "bg-gray-400" },
+];
 
 export default function ProfilePage() {
   const { data: session, status } = useSession();
@@ -81,6 +93,19 @@ export default function ProfilePage() {
   const [theme, setTheme] = useState<"light" | "dark" | "system">("system");
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
+  const [currentStatus, setCurrentStatus] = useState("online");
+  const [showStatusDropdown, setShowStatusDropdown] = useState(false);
+  const [passwordData, setPasswordData] = useState({
+    currentPassword: "",
+    newPassword: "",
+    confirmPassword: "",
+  });
+  const [passwordError, setPasswordError] = useState("");
+  const [savingPassword, setSavingPassword] = useState(false);
+  const [successMessage, setSuccessMessage] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -102,6 +127,7 @@ export default function ProfilePage() {
         const data = await res.json();
         setProfile(data);
         setAvatarUrl(data.image);
+        setCurrentStatus(data.status || "online");
         setFormData({
           name: data.name || "",
           realName: data.realName || "",
@@ -133,7 +159,8 @@ export default function ProfilePage() {
       if (res.ok) {
         const updated = await res.json();
         setProfile(updated);
-        alert("Profile updated successfully!");
+        setSuccessMessage("Profile updated successfully!");
+        setTimeout(() => setSuccessMessage(""), 3000);
       } else {
         const err = await res.json();
         alert(err.error || "Failed to update profile");
@@ -205,13 +232,109 @@ export default function ProfilePage() {
 
       if (updateRes.ok) {
         setAvatarUrl(url);
-        alert("Avatar updated successfully!");
+        setSuccessMessage("Avatar updated successfully!");
+        setTimeout(() => setSuccessMessage(""), 3000);
       }
     } catch (err) {
       console.error("Avatar upload error:", err);
       alert(err instanceof Error ? err.message : "Failed to upload avatar");
     } finally {
       setUploadingAvatar(false);
+    }
+  };
+
+  const handleStatusChange = async (newStatus: string) => {
+    try {
+      const res = await fetch("/api/profile/status", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: newStatus }),
+      });
+      if (res.ok) {
+        setCurrentStatus(newStatus);
+        setProfile((prev) => prev ? { ...prev, status: newStatus } : prev);
+        setShowStatusDropdown(false);
+      }
+    } catch (err) {
+      console.error("Error updating status:", err);
+    }
+  };
+
+  const handlePasswordChange = async () => {
+    setPasswordError("");
+    
+    if (!passwordData.currentPassword || !passwordData.newPassword || !passwordData.confirmPassword) {
+      setPasswordError("All fields are required");
+      return;
+    }
+    
+    if (passwordData.newPassword.length < 8) {
+      setPasswordError("New password must be at least 8 characters");
+      return;
+    }
+    
+    if (passwordData.newPassword !== passwordData.confirmPassword) {
+      setPasswordError("Passwords do not match");
+      return;
+    }
+
+    setSavingPassword(true);
+    try {
+      const res = await fetch("/api/auth/change-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          currentPassword: passwordData.currentPassword,
+          newPassword: passwordData.newPassword,
+        }),
+      });
+
+      if (res.ok) {
+        setShowPasswordModal(false);
+        setPasswordData({ currentPassword: "", newPassword: "", confirmPassword: "" });
+        setSuccessMessage("Password changed successfully!");
+        setTimeout(() => setSuccessMessage(""), 3000);
+      } else {
+        const err = await res.json();
+        setPasswordError(err.error || "Failed to change password");
+      }
+    } catch (err) {
+      setPasswordError("An error occurred");
+    } finally {
+      setSavingPassword(false);
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    if (deleteConfirmText !== "DELETE") return;
+    
+    try {
+      const res = await fetch("/api/profile", {
+        method: "DELETE",
+      });
+      if (res.ok) {
+        await signOut({ callbackUrl: "/" });
+      } else {
+        alert("Failed to delete account");
+      }
+    } catch (err) {
+      console.error("Error deleting account:", err);
+    }
+  };
+
+  const applyTheme = (newTheme: "light" | "dark" | "system") => {
+    setTheme(newTheme);
+    if (newTheme === "dark") {
+      document.documentElement.classList.add("dark");
+    } else if (newTheme === "light") {
+      document.documentElement.classList.remove("dark");
+    } else {
+      // System preference
+      if (window.matchMedia("(prefers-color-scheme: dark)").matches) {
+        document.documentElement.classList.add("dark");
+      } else {
+        document.documentElement.classList.remove("dark");
+      }
     }
   };
 
@@ -237,12 +360,22 @@ export default function ProfilePage() {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      {/* Success Toast */}
+      {successMessage && (
+        <div className="fixed top-4 right-4 z-50 animate-slideUp">
+          <div className="flex items-center gap-2 px-4 py-3 bg-green-500 text-white rounded-lg shadow-lg">
+            <Check className="w-5 h-5" />
+            {successMessage}
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-10">
         <div className="max-w-4xl mx-auto px-4 py-4 flex items-center gap-4">
           <button
             onClick={() => router.push("/dashboard")}
-            className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
+            className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-smooth"
           >
             <ArrowLeft className="w-5 h-5" />
           </button>
@@ -284,9 +417,34 @@ export default function ProfilePage() {
               <h2 className="text-2xl font-bold">{profile?.name || "User"}</h2>
               <p className="text-gray-500">{profile?.email}</p>
               <div className="flex flex-wrap gap-2 mt-2 justify-center md:justify-start">
-                <Badge variant="success">
-                  {profile?.status === "online" ? "Online" : "Offline"}
-                </Badge>
+                <div className="relative">
+                  <button
+                    onClick={() => setShowStatusDropdown(!showStatusDropdown)}
+                    className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition-smooth"
+                  >
+                    <Circle className={`w-2.5 h-2.5 ${STATUS_OPTIONS.find(s => s.value === currentStatus)?.color || "bg-gray-400"} rounded-full`} />
+                    <span className="text-sm font-medium capitalize">{currentStatus}</span>
+                  </button>
+                  {showStatusDropdown && (
+                    <div className="absolute top-full left-0 mt-2 w-40 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 overflow-hidden z-20 animate-fadeIn">
+                      {STATUS_OPTIONS.map((status) => (
+                        <button
+                          key={status.value}
+                          onClick={() => handleStatusChange(status.value)}
+                          className={`w-full flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 dark:hover:bg-gray-700 transition-smooth ${
+                            currentStatus === status.value ? "bg-blue-50 dark:bg-blue-900/20" : ""
+                          }`}
+                        >
+                          <Circle className={`w-2.5 h-2.5 ${status.color} rounded-full`} />
+                          <span className="text-sm">{status.label}</span>
+                          {currentStatus === status.value && (
+                            <Check className="w-4 h-4 text-blue-600 ml-auto" />
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
                 {profile?.occupation && (
                   <Badge variant="secondary">{profile.occupation}</Badge>
                 )}
@@ -503,7 +661,10 @@ export default function ProfilePage() {
                 </div>
               </button>
 
-              <button className="w-full flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600">
+              <button
+                onClick={() => setShowPasswordModal(true)}
+                className="w-full flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 transition-smooth"
+              >
                 <div className="flex items-center gap-3">
                   <Lock className="w-5 h-5 text-yellow-500" />
                   <div className="text-left">
@@ -513,7 +674,10 @@ export default function ProfilePage() {
                 </div>
               </button>
 
-              <button className="w-full flex items-center justify-between p-4 bg-red-50 dark:bg-red-900/20 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/30">
+              <button
+                onClick={() => setShowDeleteModal(true)}
+                className="w-full flex items-center justify-between p-4 bg-red-50 dark:bg-red-900/20 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/30 transition-smooth"
+              >
                 <div className="flex items-center gap-3">
                   <Trash2 className="w-5 h-5 text-red-500" />
                   <div className="text-left">
@@ -577,23 +741,43 @@ export default function ProfilePage() {
               <label className="block text-sm font-medium mb-3">Theme</label>
               <div className="grid grid-cols-3 gap-3">
                 {[
-                  { id: "light", label: "Light", icon: "☀️" },
-                  { id: "dark", label: "Dark", icon: "🌙" },
-                  { id: "system", label: "System", icon: "💻" },
+                  { id: "light", label: "Light", icon: Sun },
+                  { id: "dark", label: "Dark", icon: Moon },
+                  { id: "system", label: "System", icon: Monitor },
                 ].map((t) => (
                   <button
                     key={t.id}
-                    onClick={() => setTheme(t.id as typeof theme)}
-                    className={`p-4 rounded-lg border-2 text-center transition ${
+                    onClick={() => applyTheme(t.id as typeof theme)}
+                    className={`p-4 rounded-xl border-2 text-center transition-smooth ${
                       theme === t.id
                         ? "border-blue-600 bg-blue-50 dark:bg-blue-900/20"
-                        : "border-gray-200 dark:border-gray-600 hover:border-gray-300"
+                        : "border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500"
                     }`}
                   >
-                    <span className="text-2xl block mb-1">{t.icon}</span>
+                    <t.icon className={`w-6 h-6 mx-auto mb-2 ${theme === t.id ? "text-blue-600" : "text-gray-500"}`} />
                     <span className="text-sm font-medium">{t.label}</span>
                   </button>
                 ))}
+              </div>
+            </div>
+
+            <div className="border-t pt-6">
+              <h4 className="font-medium mb-4">Chat Settings</h4>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                  <div>
+                    <p className="font-medium">Compact Mode</p>
+                    <p className="text-sm text-gray-500">Show more messages on screen</p>
+                  </div>
+                  <Switch />
+                </div>
+                <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                  <div>
+                    <p className="font-medium">Show Timestamps</p>
+                    <p className="text-sm text-gray-500">Display message times</p>
+                  </div>
+                  <Switch defaultChecked />
+                </div>
               </div>
             </div>
           </div>
@@ -604,6 +788,126 @@ export default function ProfilePage() {
           <p>Member since {profile?.createdAt ? new Date(profile.createdAt).toLocaleDateString() : "..."}</p>
         </div>
       </div>
+
+      {/* Password Change Modal */}
+      {showPasswordModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 animate-fadeIn">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 max-w-md w-full animate-slideUp">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-2 bg-yellow-100 dark:bg-yellow-900/30 rounded-full">
+                <Lock className="w-5 h-5 text-yellow-600" />
+              </div>
+              <h3 className="text-lg font-semibold">Change Password</h3>
+            </div>
+            
+            {passwordError && (
+              <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-red-600 text-sm">
+                {passwordError}
+              </div>
+            )}
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-1">Current Password</label>
+                <Input
+                  type="password"
+                  value={passwordData.currentPassword}
+                  onChange={(e) => setPasswordData({ ...passwordData, currentPassword: e.target.value })}
+                  placeholder="Enter current password"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">New Password</label>
+                <Input
+                  type="password"
+                  value={passwordData.newPassword}
+                  onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })}
+                  placeholder="Enter new password"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Confirm New Password</label>
+                <Input
+                  type="password"
+                  value={passwordData.confirmPassword}
+                  onChange={(e) => setPasswordData({ ...passwordData, confirmPassword: e.target.value })}
+                  placeholder="Confirm new password"
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => {
+                  setShowPasswordModal(false);
+                  setPasswordData({ currentPassword: "", newPassword: "", confirmPassword: "" });
+                  setPasswordError("");
+                }}
+                className="flex-1 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-smooth"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handlePasswordChange}
+                disabled={savingPassword}
+                className="flex-1 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-smooth flex items-center justify-center gap-2"
+              >
+                {savingPassword && <Loader2 className="w-4 h-4 animate-spin" />}
+                {savingPassword ? "Saving..." : "Change Password"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Account Modal */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 animate-fadeIn">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 max-w-md w-full animate-slideUp">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-2 bg-red-100 dark:bg-red-900/30 rounded-full">
+                <AlertTriangle className="w-5 h-5 text-red-600" />
+              </div>
+              <h3 className="text-lg font-semibold text-red-600">Delete Account</h3>
+            </div>
+            
+            <p className="text-gray-600 dark:text-gray-400 mb-4">
+              This action cannot be undone. All your data, messages, and connections will be permanently deleted.
+            </p>
+
+            <div className="mb-4">
+              <label className="block text-sm font-medium mb-2">
+                Type <span className="font-bold text-red-600">DELETE</span> to confirm
+              </label>
+              <Input
+                value={deleteConfirmText}
+                onChange={(e) => setDeleteConfirmText(e.target.value)}
+                placeholder="Type DELETE to confirm"
+                className="border-red-300 focus:border-red-500"
+              />
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setShowDeleteModal(false);
+                  setDeleteConfirmText("");
+                }}
+                className="flex-1 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-smooth"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteAccount}
+                disabled={deleteConfirmText !== "DELETE"}
+                className="flex-1 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-smooth"
+              >
+                Delete Account
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
