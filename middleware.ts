@@ -87,13 +87,20 @@ export async function middleware(request: NextRequest) {
     response.headers.set(key, value);
   });
 
-  // Add CSP header (relaxed for development)
-  if (process.env.NODE_ENV === 'production') {
-    response.headers.set(
-      'Content-Security-Policy',
-      "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https://api.anthropic.com;"
-    );
-  }
+  // Add CSP header
+  response.headers.set(
+    'Content-Security-Policy',
+    [
+      "default-src 'self'",
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://vercel.live https://*.vercel.live https://*.vercel.app",
+      "script-src-elem 'self' 'unsafe-inline' https://vercel.live https://*.vercel.live https://*.vercel.app",
+      "style-src 'self' 'unsafe-inline'",
+      "img-src 'self' data: blob: https: http:",
+      "font-src 'self' data:",
+      "connect-src 'self' https: wss: ws:",
+      "frame-src 'self' https://vercel.live https://*.vercel.live",
+    ].join('; ')
+  );
 
   return response;
 }

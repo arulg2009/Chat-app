@@ -15,13 +15,13 @@ export const authOptions: AuthOptions = {
       },
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) {
-          return null;
+          throw new Error("Email and password are required");
         }
 
         // Validate email format
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (!emailRegex.test(credentials.email)) {
-          return null;
+          throw new Error("Invalid email format");
         }
 
         try {
@@ -31,8 +31,12 @@ export const authOptions: AuthOptions = {
             },
           });
 
-          if (!user || !user.password) {
-            return null;
+          if (!user) {
+            throw new Error("No account found with this email");
+          }
+
+          if (!user.password) {
+            throw new Error("Please use the sign-in method you used to create this account");
           }
 
           const isCorrectPassword = await bcrypt.compare(
@@ -41,18 +45,19 @@ export const authOptions: AuthOptions = {
           );
 
           if (!isCorrectPassword) {
-            return null;
+            throw new Error("Incorrect password");
           }
 
+          // Return user object - authentication successful
           return {
             id: user.id,
             email: user.email,
             name: user.name,
             image: user.image,
           };
-        } catch (error) {
-          console.error("Auth error:", error);
-          return null;
+        } catch (error: any) {
+          console.error("Auth error:", error.message);
+          throw error;
         }
       },
     }),

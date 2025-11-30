@@ -72,20 +72,39 @@ function SignInForm() {
         callbackUrl,
       });
 
+      console.log("SignIn result:", result); // Debug log
+
       if (result?.error) {
-        // Check for specific error messages
-        if (result.error.includes("verify") || result.error.includes("Verify")) {
+        // Decode the error message
+        let errorMessage = result.error;
+        
+        // NextAuth encodes errors, try to decode
+        try {
+          errorMessage = decodeURIComponent(result.error);
+        } catch (e) {
+          // Keep original if decode fails
+        }
+
+        // Handle specific error messages
+        if (errorMessage.includes("verify") || errorMessage.includes("Verify")) {
           setError("Please verify your email before signing in. Check your inbox for the verification link.");
-        } else if (result.error === "CredentialsSignin") {
+        } else if (errorMessage === "CredentialsSignin") {
           setError("Invalid email or password. Please try again.");
+        } else if (errorMessage.includes("No account")) {
+          setError("No account found with this email address.");
+        } else if (errorMessage.includes("Incorrect password")) {
+          setError("Incorrect password. Please try again.");
         } else {
-          setError(result.error);
+          setError(errorMessage);
         }
       } else if (result?.ok) {
-        router.push(callbackUrl);
-        router.refresh();
+        // Success - redirect to dashboard
+        window.location.href = callbackUrl;
+      } else {
+        setError("Sign in failed. Please try again.");
       }
     } catch (error) {
+      console.error("SignIn error:", error);
       setError("An unexpected error occurred. Please try again.");
     } finally {
       setIsLoading(false);
