@@ -88,6 +88,21 @@ model VerificationToken {
   @@unique([identifier, token])
 }
 
+// OTP for email verification and password reset
+model EmailOtp {
+  id        String   @id @default(cuid())
+  email     String
+  code      String
+  type      String   // "verification" or "password_reset"
+  expires   DateTime
+  verified  Boolean  @default(false)
+  attempts  Int      @default(0)
+  createdAt DateTime @default(now())
+
+  @@index([email, type])
+  @@index([code])
+}
+
 model Conversation {
   id          String   @id @default(cuid())
   name        String?

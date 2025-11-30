@@ -1,13 +1,10 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import crypto from "crypto";
+import { generateOTP, sendVerificationOTP } from "@/lib/email";
 
-// Helper to generate verification token
-function generateToken(): string {
-  return crypto.randomBytes(32).toString("hex");
-}
+// Rate limit: 1 OTP per minute
+const RESEND_COOLDOWN = 60 * 1000; // 60 seconds
 
-// POST /api/auth/resend-verification - Resend verification email
 export async function POST(request: Request) {
   try {
     const body = await request.json();
@@ -28,66 +25,90 @@ export async function POST(request: Request) {
     });
 
     if (!user) {
-      // Don't reveal if user exists or not for security
+      // Don't reveal if user exists for security
       return NextResponse.json({
         success: true,
-        message: "If an account exists with this email, a verification link will be sent.",
+        message: "If an account exists, a verification code will be sent.",
       });
     }
 
     // Check if already verified
     if (user.emailVerified) {
       return NextResponse.json(
-        { error: "Email is already verified" },
+        { error: "Email is already verified. Please sign in." },
         { status: 400 }
       );
     }
 
-    // Delete any existing tokens for this user
-    await prisma.verificationToken.deleteMany({
-      where: { identifier: normalizedEmail },
+    // Check for recent OTP (rate limiting)
+    const recentOtp = await prisma.emailOtp.findFirst({
+      where: {
+        email: normalizedEmail,
+        type: "verification",
+        createdAt: { gt: new Date(Date.now() - RESEND_COOLDOWN) },
+      },
     });
 
-    // Generate new token
-    const token = generateToken();
-    const expires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+    if (recentOtp) {
+      const waitTime = Math.ceil(
+        (RESEND_COOLDOWN - (Date.now() - recentOtp.createdAt.getTime())) / 1000
+      );
+      return NextResponse.json(
+        { 
+          error: `Please wait ${waitTime} seconds before requesting a new code.`,
+          waitTime,
+        },
+        { status: 429 }
+      );
+    }
 
-    // Save token
-    await prisma.verificationToken.create({
+    // Delete old OTPs for this email
+    await prisma.emailOtp.deleteMany({
+      where: { email: normalizedEmail, type: "verification" },
+    });
+
+    // Generate new OTP
+    const otp = generateOTP();
+    const expires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+    // Save OTP
+    await prisma.emailOtp.create({
       data: {
-        identifier: normalizedEmail,
-        token,
+        email: normalizedEmail,
+        code: otp,
+        type: "verification",
         expires,
       },
     });
 
-    // In production, send email here
-    // For now, log the verification link (in development)
-    const baseUrl = process.env.NEXTAUTH_URL || "http://localhost:3000";
-    const verificationUrl = `${baseUrl}/auth/verify-email?token=${token}`;
-    
-    console.log("=================================");
-    console.log("VERIFICATION EMAIL");
-    console.log(`To: ${normalizedEmail}`);
-    console.log(`Link: ${verificationUrl}`);
-    console.log("=================================");
+    // Send OTP email
+    const emailSent = await sendVerificationOTP({
+      to: normalizedEmail,
+      otp,
+      name: user.name || undefined,
+    });
 
-    // TODO: Integrate with email service (SendGrid, Resend, etc.)
-    // await sendVerificationEmail(normalizedEmail, verificationUrl);
+    if (!emailSent) {
+      console.log("=================================");
+      console.log("EMAIL SENDING FAILED - DEV MODE");
+      console.log(`Email: ${normalizedEmail}`);
+      console.log(`OTP: ${otp}`);
+      console.log("=================================");
+    }
 
     return NextResponse.json({
       success: true,
-      message: "Verification email sent",
-      // Only include in development for testing
-      ...(process.env.NODE_ENV === "development" && { 
-        verificationUrl,
-        note: "This URL is only shown in development mode" 
+      message: "Verification code sent to your email.",
+      // Include OTP in development for testing
+      ...(process.env.NODE_ENV === "development" && !emailSent && { 
+        devOtp: otp,
+        note: "OTP shown because email sending failed (dev mode)" 
       }),
     });
   } catch (error) {
     console.error("Resend verification error:", error);
     return NextResponse.json(
-      { error: "Failed to send verification email" },
+      { error: "Failed to send verification code" },
       { status: 500 }
     );
   }

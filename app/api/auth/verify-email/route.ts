@@ -1,38 +1,80 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import crypto from "crypto";
 
-// POST /api/auth/verify-email - Verify email with token
+const MAX_ATTEMPTS = 5;
+
+// POST /api/auth/verify-email - Verify email with OTP
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { token } = body;
+    const { email, otp } = body;
 
-    if (!token) {
+    if (!email || !otp) {
       return NextResponse.json(
-        { error: "Verification token is required" },
+        { error: "Email and OTP are required" },
         { status: 400 }
       );
     }
 
-    // Find the verification token
-    const verificationToken = await prisma.verificationToken.findFirst({
+    const normalizedEmail = email.toLowerCase().trim();
+    const normalizedOtp = otp.trim();
+
+    // Find the OTP record
+    const otpRecord = await prisma.emailOtp.findFirst({
       where: {
-        token,
-        expires: { gt: new Date() },
+        email: normalizedEmail,
+        type: "verification",
+        verified: false,
       },
+      orderBy: { createdAt: "desc" },
     });
 
-    if (!verificationToken) {
+    if (!otpRecord) {
       return NextResponse.json(
-        { error: "Invalid or expired verification token" },
+        { error: "No verification code found. Please request a new one." },
         { status: 400 }
       );
     }
 
-    // Find user by email (identifier)
+    // Check if expired
+    if (new Date() > otpRecord.expires) {
+      await prisma.emailOtp.delete({ where: { id: otpRecord.id } });
+      return NextResponse.json(
+        { error: "Verification code has expired. Please request a new one." },
+        { status: 400 }
+      );
+    }
+
+    // Check attempts
+    if (otpRecord.attempts >= MAX_ATTEMPTS) {
+      await prisma.emailOtp.delete({ where: { id: otpRecord.id } });
+      return NextResponse.json(
+        { error: "Too many attempts. Please request a new verification code." },
+        { status: 429 }
+      );
+    }
+
+    // Verify OTP
+    if (otpRecord.code !== normalizedOtp) {
+      // Increment attempts
+      await prisma.emailOtp.update({
+        where: { id: otpRecord.id },
+        data: { attempts: otpRecord.attempts + 1 },
+      });
+
+      const remainingAttempts = MAX_ATTEMPTS - otpRecord.attempts - 1;
+      return NextResponse.json(
+        { 
+          error: `Invalid verification code. ${remainingAttempts} attempts remaining.`,
+          remainingAttempts,
+        },
+        { status: 400 }
+      );
+    }
+
+    // OTP is valid - verify the user
     const user = await prisma.user.findUnique({
-      where: { email: verificationToken.identifier },
+      where: { email: normalizedEmail },
     });
 
     if (!user) {
@@ -48,19 +90,12 @@ export async function POST(request: Request) {
       data: { emailVerified: new Date() },
     });
 
-    // Delete the used token
-    await prisma.verificationToken.delete({
-      where: {
-        identifier_token: {
-          identifier: verificationToken.identifier,
-          token: verificationToken.token,
-        },
-      },
-    });
+    // Mark OTP as verified and delete it
+    await prisma.emailOtp.delete({ where: { id: otpRecord.id } });
 
     return NextResponse.json({
       success: true,
-      message: "Email verified successfully",
+      message: "Email verified successfully! You can now sign in.",
     });
   } catch (error) {
     console.error("Email verification error:", error);

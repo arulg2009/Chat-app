@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
-import crypto from "crypto";
+import { generateOTP, sendVerificationOTP } from "@/lib/email";
 
 // Input sanitization helper
 function sanitizeInput(input: string): string {
@@ -12,11 +12,6 @@ function sanitizeInput(input: string): string {
 function isValidEmail(email: string): boolean {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   return emailRegex.test(email);
-}
-
-// Generate verification token
-function generateToken(): string {
-  return crypto.randomBytes(32).toString("hex");
 }
 
 export async function POST(request: Request) {
@@ -100,6 +95,45 @@ export async function POST(request: Request) {
     });
 
     if (existingUser) {
+      // If user exists but not verified, allow re-sending OTP
+      if (!existingUser.emailVerified) {
+        // Delete old OTPs for this email
+        await prisma.emailOtp.deleteMany({
+          where: { email: sanitizedEmail, type: "verification" },
+        });
+
+        // Generate new OTP
+        const otp = generateOTP();
+        const expires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+        // Save OTP
+        await prisma.emailOtp.create({
+          data: {
+            email: sanitizedEmail,
+            code: otp,
+            type: "verification",
+            expires,
+          },
+        });
+
+        // Send OTP email
+        const emailSent = await sendVerificationOTP({
+          to: sanitizedEmail,
+          otp,
+          name: sanitizedNickname,
+        });
+
+        if (!emailSent) {
+          console.log(`[DEV] Verification OTP for ${sanitizedEmail}: ${otp}`);
+        }
+
+        return NextResponse.json({
+          success: true,
+          message: "Verification code sent to your email",
+          requiresVerification: true,
+        });
+      }
+
       return NextResponse.json(
         { error: "An account with this email already exists" },
         { status: 409 }
@@ -109,64 +143,72 @@ export async function POST(request: Request) {
     // Hash password with strong salt rounds
     const hashedPassword = await bcrypt.hash(password, 12);
 
-    // Create user
+    // Create user (unverified)
     const user = await prisma.user.create({
       data: {
         email: sanitizedEmail,
-        name: sanitizedNickname, // nickname is the display name
-        realName: sanitizedRealName, // real name for account recovery
+        name: sanitizedNickname,
+        realName: sanitizedRealName,
         password: hashedPassword,
         status: "offline",
-        emailVerified: null, // Not verified yet
+        emailVerified: null,
       },
     });
 
-    // Generate verification token
-    const token = generateToken();
-    const expires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+    // Generate OTP
+    const otp = generateOTP();
+    const expires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
-    // Save verification token
-    await prisma.verificationToken.create({
+    // Delete any existing OTPs for this email
+    await prisma.emailOtp.deleteMany({
+      where: { email: sanitizedEmail, type: "verification" },
+    });
+
+    // Save OTP
+    await prisma.emailOtp.create({
       data: {
-        identifier: sanitizedEmail,
-        token,
+        email: sanitizedEmail,
+        code: otp,
+        type: "verification",
         expires,
       },
     });
 
-    // Log verification URL (in development)
-    const baseUrl = process.env.NEXTAUTH_URL || "http://localhost:3000";
-    const verificationUrl = `${baseUrl}/auth/verify-email?token=${token}`;
-    
-    console.log("=================================");
-    console.log("NEW USER REGISTRATION");
-    console.log(`Email: ${sanitizedEmail}`);
-    console.log(`Verification Link: ${verificationUrl}`);
-    console.log("=================================");
+    // Send OTP email
+    const emailSent = await sendVerificationOTP({
+      to: sanitizedEmail,
+      otp,
+      name: sanitizedNickname,
+    });
 
-    // TODO: Send verification email in production
-    // await sendVerificationEmail(sanitizedEmail, verificationUrl);
+    if (!emailSent) {
+      // Log OTP for development/testing when email fails
+      console.log("=================================");
+      console.log("EMAIL SENDING FAILED - DEV MODE");
+      console.log(`Email: ${sanitizedEmail}`);
+      console.log(`OTP: ${otp}`);
+      console.log("=================================");
+    }
 
-    // Return success (don't include password in response)
     return NextResponse.json({
       success: true,
+      message: "Account created! Please verify your email with the OTP sent.",
       user: {
         id: user.id,
         email: user.email,
         name: user.name,
-        realName: user.realName,
       },
-      // Only include in development for testing
-      ...(process.env.NODE_ENV === "development" && { 
-        verificationUrl,
-        note: "Verification URL only shown in development" 
+      requiresVerification: true,
+      // Include OTP in development for testing
+      ...(process.env.NODE_ENV === "development" && !emailSent && { 
+        devOtp: otp,
+        note: "OTP shown because email sending failed (dev mode)" 
       }),
     });
   } catch (error: any) {
     console.error("Registration error:", error);
-    
-    // Handle specific Prisma errors
-    if (error.code === 'P2002') {
+
+    if (error.code === "P2002") {
       return NextResponse.json(
         { error: "An account with this email already exists" },
         { status: 409 }
