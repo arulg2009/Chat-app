@@ -682,6 +682,87 @@ export default function DashboardPage() {
               </div>
             </div>
           )}
+
+          {/* Advanced Tab */}
+          {activeTab === 'advanced' && (
+            <div className="p-4 space-y-4">
+              <h3 className="text-lg font-semibold mb-4">Account Settings</h3>
+              
+              {/* Quick Actions */}
+              <div className="space-y-2">
+                <button
+                  onClick={() => router.push('/profile')}
+                  className="w-full flex items-center gap-3 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 transition"
+                >
+                  <User className="w-5 h-5 text-blue-500" />
+                  <div className="text-left flex-1">
+                    <p className="font-medium">Edit Profile</p>
+                    <p className="text-xs text-gray-500">Update your profile information</p>
+                  </div>
+                </button>
+
+                <button
+                  onClick={() => router.push('/profile')}
+                  className="w-full flex items-center gap-3 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 transition"
+                >
+                  <Settings className="w-5 h-5 text-purple-500" />
+                  <div className="text-left flex-1">
+                    <p className="font-medium">Privacy & Security</p>
+                    <p className="text-xs text-gray-500">Manage your privacy settings</p>
+                  </div>
+                </button>
+
+                <button
+                  onClick={() => router.push('/profile')}
+                  className="w-full flex items-center gap-3 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 transition"
+                >
+                  <Bell className="w-5 h-5 text-yellow-500" />
+                  <div className="text-left flex-1">
+                    <p className="font-medium">Notifications</p>
+                    <p className="text-xs text-gray-500">Configure notification preferences</p>
+                  </div>
+                </button>
+              </div>
+
+              {/* Stats */}
+              <div className="mt-6">
+                <h4 className="text-sm font-semibold text-gray-500 uppercase mb-3">Your Stats</h4>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl p-4 text-white">
+                    <p className="text-2xl font-bold">{connectedUsers.length}</p>
+                    <p className="text-sm opacity-80">Connections</p>
+                  </div>
+                  <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl p-4 text-white">
+                    <p className="text-2xl font-bold">{groups.length}</p>
+                    <p className="text-sm opacity-80">Groups</p>
+                  </div>
+                  <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-xl p-4 text-white">
+                    <p className="text-2xl font-bold">{pendingReceivedRequests.length}</p>
+                    <p className="text-sm opacity-80">Pending</p>
+                  </div>
+                  <div className="bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl p-4 text-white">
+                    <p className="text-2xl font-bold">{users.length}</p>
+                    <p className="text-sm opacity-80">Users</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Danger Zone */}
+              <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
+                <h4 className="text-sm font-semibold text-red-500 uppercase mb-3">Danger Zone</h4>
+                <button
+                  onClick={() => signOut({ callbackUrl: '/' })}
+                  className="w-full flex items-center gap-3 p-4 bg-red-50 dark:bg-red-900/20 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/30 transition text-red-600"
+                >
+                  <LogOut className="w-5 h-5" />
+                  <div className="text-left flex-1">
+                    <p className="font-medium">Sign Out</p>
+                    <p className="text-xs text-red-400">Log out of your account</p>
+                  </div>
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
