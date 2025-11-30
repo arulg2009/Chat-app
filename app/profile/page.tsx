@@ -7,55 +7,18 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
-  ArrowLeft,
-  Camera,
-  Save,
-  User,
-  Mail,
-  MapPin,
-  Globe,
-  Phone,
-  Calendar,
-  Briefcase,
-  Heart,
-  FileText,
-  Shield,
-  Bell,
-  Palette,
-  Lock,
-  Trash2,
-  Download,
-  Eye,
-  EyeOff,
-  Loader2,
-  Upload,
-  Check,
-  X,
-  AlertTriangle,
-  Circle,
-  Moon,
-  Sun,
-  Monitor,
+  ArrowLeft, Camera, Save, User, Mail, MapPin, Globe, Phone, Calendar,
+  Briefcase, Heart, FileText, Shield, Bell, Palette, Lock, Trash2,
+  Download, Eye, EyeOff, Loader2, Check, X, AlertTriangle, Circle, Moon, Sun, Monitor,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 
 interface ProfileData {
-  id: string;
-  name: string | null;
-  realName: string | null;
-  email: string | null;
-  image: string | null;
-  bio: string | null;
-  hobbies: string | null;
-  location: string | null;
-  website: string | null;
-  phone: string | null;
-  dateOfBirth: string | null;
-  gender: string | null;
-  occupation: string | null;
-  status: string;
-  createdAt: string;
+  id: string; name: string | null; realName: string | null; email: string | null;
+  image: string | null; bio: string | null; hobbies: string | null; location: string | null;
+  website: string | null; phone: string | null; dateOfBirth: string | null;
+  gender: string | null; occupation: string | null; status: string; createdAt: string;
 }
 
 const STATUS_OPTIONS = [
@@ -72,18 +35,7 @@ export default function ProfilePage() {
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState<"profile" | "privacy" | "notifications" | "appearance">("profile");
   const [profile, setProfile] = useState<ProfileData | null>(null);
-  const [formData, setFormData] = useState({
-    name: "",
-    realName: "",
-    bio: "",
-    hobbies: "",
-    location: "",
-    website: "",
-    phone: "",
-    dateOfBirth: "",
-    gender: "",
-    occupation: "",
-  });
+  const [formData, setFormData] = useState({ name: "", realName: "", bio: "", hobbies: "", location: "", website: "", phone: "", dateOfBirth: "", gender: "", occupation: "" });
   const [showEmail, setShowEmail] = useState(true);
   const [showOnlineStatus, setShowOnlineStatus] = useState(true);
   const [showLastSeen, setShowLastSeen] = useState(true);
@@ -98,27 +50,14 @@ export default function ProfilePage() {
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
   const [currentStatus, setCurrentStatus] = useState("online");
   const [showStatusDropdown, setShowStatusDropdown] = useState(false);
-  const [passwordData, setPasswordData] = useState({
-    currentPassword: "",
-    newPassword: "",
-    confirmPassword: "",
-  });
+  const [passwordData, setPasswordData] = useState({ currentPassword: "", newPassword: "", confirmPassword: "" });
   const [passwordError, setPasswordError] = useState("");
   const [savingPassword, setSavingPassword] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    if (status === "unauthenticated") {
-      router.push("/auth/signin");
-    }
-  }, [status, router]);
-
-  useEffect(() => {
-    if (status === "authenticated") {
-      fetchProfile();
-    }
-  }, [status]);
+  useEffect(() => { if (status === "unauthenticated") router.push("/auth/signin"); }, [status, router]);
+  useEffect(() => { if (status === "authenticated") fetchProfile(); }, [status]);
 
   const fetchProfile = async () => {
     try {
@@ -128,563 +67,213 @@ export default function ProfilePage() {
         setProfile(data);
         setAvatarUrl(data.image);
         setCurrentStatus(data.status || "online");
-        setFormData({
-          name: data.name || "",
-          realName: data.realName || "",
-          bio: data.bio || "",
-          hobbies: data.hobbies || "",
-          location: data.location || "",
-          website: data.website || "",
-          phone: data.phone || "",
-          dateOfBirth: data.dateOfBirth ? data.dateOfBirth.split("T")[0] : "",
-          gender: data.gender || "",
-          occupation: data.occupation || "",
-        });
+        setFormData({ name: data.name || "", realName: data.realName || "", bio: data.bio || "", hobbies: data.hobbies || "", location: data.location || "", website: data.website || "", phone: data.phone || "", dateOfBirth: data.dateOfBirth ? data.dateOfBirth.split("T")[0] : "", gender: data.gender || "", occupation: data.occupation || "" });
       }
-    } catch (err) {
-      console.error("Error fetching profile:", err);
-    } finally {
-      setLoading(false);
-    }
+    } catch (e) { console.error(e); }
+    finally { setLoading(false); }
   };
 
   const handleSaveProfile = async () => {
     setSaving(true);
     try {
-      const res = await fetch("/api/profile", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
-      });
-      if (res.ok) {
-        const updated = await res.json();
-        setProfile(updated);
-        setSuccessMessage("Profile updated successfully!");
-        setTimeout(() => setSuccessMessage(""), 3000);
-      } else {
-        const err = await res.json();
-        alert(err.error || "Failed to update profile");
-      }
-    } catch (err) {
-      console.error("Error saving profile:", err);
-      alert("Failed to save profile");
-    } finally {
-      setSaving(false);
-    }
+      const res = await fetch("/api/profile", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(formData) });
+      if (res.ok) { setProfile(await res.json()); setSuccessMessage("Saved!"); setTimeout(() => setSuccessMessage(""), 2000); }
+    } catch (e) { console.error(e); }
+    finally { setSaving(false); }
   };
 
   const handleExportData = async () => {
     try {
       const res = await fetch("/api/profile/export");
-      if (res.ok) {
-        const blob = await res.blob();
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = "my-chat-data.json";
-        a.click();
-        window.URL.revokeObjectURL(url);
-      }
-    } catch (err) {
-      console.error("Error exporting data:", err);
-    }
+      if (res.ok) { const blob = await res.blob(); const url = window.URL.createObjectURL(blob); const a = document.createElement("a"); a.href = url; a.download = "my-data.json"; a.click(); }
+    } catch (e) { console.error(e); }
   };
 
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file) return;
-
-    if (!file.type.startsWith("image/")) {
-      alert("Please upload an image file");
-      return;
-    }
-
-    if (file.size > 10 * 1024 * 1024) {
-      alert("File size must be less than 10MB");
-      return;
-    }
-
+    if (!file || !file.type.startsWith("image/") || file.size > 10 * 1024 * 1024) return;
     setUploadingAvatar(true);
-
     try {
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append("type", "avatar");
-
-      const uploadRes = await fetch("/api/upload", {
-        method: "POST",
-        body: formData,
-      });
-
-      if (!uploadRes.ok) {
-        const err = await uploadRes.json();
-        throw new Error(err.error || "Upload failed");
+      const fd = new FormData(); fd.append("file", file); fd.append("type", "avatar");
+      const res = await fetch("/api/upload", { method: "POST", body: fd });
+      if (res.ok) {
+        const { url } = await res.json();
+        const updateRes = await fetch("/api/profile", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ image: url }) });
+        if (updateRes.ok) { setAvatarUrl(url); setSuccessMessage("Avatar updated!"); setTimeout(() => setSuccessMessage(""), 2000); }
       }
-
-      const { url } = await uploadRes.json();
-
-      // Update profile with new avatar
-      const updateRes = await fetch("/api/profile", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ image: url }),
-      });
-
-      if (updateRes.ok) {
-        setAvatarUrl(url);
-        setSuccessMessage("Avatar updated successfully!");
-        setTimeout(() => setSuccessMessage(""), 3000);
-      }
-    } catch (err) {
-      console.error("Avatar upload error:", err);
-      alert(err instanceof Error ? err.message : "Failed to upload avatar");
-    } finally {
-      setUploadingAvatar(false);
-    }
+    } catch (e) { console.error(e); }
+    finally { setUploadingAvatar(false); }
   };
 
   const handleStatusChange = async (newStatus: string) => {
     try {
-      const res = await fetch("/api/profile/status", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: newStatus }),
-      });
-      if (res.ok) {
-        setCurrentStatus(newStatus);
-        setProfile((prev) => prev ? { ...prev, status: newStatus } : prev);
-        setShowStatusDropdown(false);
-      }
-    } catch (err) {
-      console.error("Error updating status:", err);
-    }
+      const res = await fetch("/api/profile/status", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: newStatus }) });
+      if (res.ok) { setCurrentStatus(newStatus); setProfile(prev => prev ? { ...prev, status: newStatus } : prev); setShowStatusDropdown(false); }
+    } catch (e) { console.error(e); }
   };
 
   const handlePasswordChange = async () => {
     setPasswordError("");
-    
-    if (!passwordData.currentPassword || !passwordData.newPassword || !passwordData.confirmPassword) {
-      setPasswordError("All fields are required");
-      return;
-    }
-    
-    if (passwordData.newPassword.length < 8) {
-      setPasswordError("New password must be at least 8 characters");
-      return;
-    }
-    
-    if (passwordData.newPassword !== passwordData.confirmPassword) {
-      setPasswordError("Passwords do not match");
-      return;
-    }
-
+    if (!passwordData.currentPassword || !passwordData.newPassword || !passwordData.confirmPassword) { setPasswordError("All fields required"); return; }
+    if (passwordData.newPassword.length < 8) { setPasswordError("Min 8 characters"); return; }
+    if (passwordData.newPassword !== passwordData.confirmPassword) { setPasswordError("Passwords don't match"); return; }
     setSavingPassword(true);
     try {
-      const res = await fetch("/api/auth/change-password", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          currentPassword: passwordData.currentPassword,
-          newPassword: passwordData.newPassword,
-        }),
-      });
-
-      if (res.ok) {
-        setShowPasswordModal(false);
-        setPasswordData({ currentPassword: "", newPassword: "", confirmPassword: "" });
-        setSuccessMessage("Password changed successfully!");
-        setTimeout(() => setSuccessMessage(""), 3000);
-      } else {
-        const err = await res.json();
-        setPasswordError(err.error || "Failed to change password");
-      }
-    } catch (err) {
-      setPasswordError("An error occurred");
-    } finally {
-      setSavingPassword(false);
-    }
+      const res = await fetch("/api/auth/change-password", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ currentPassword: passwordData.currentPassword, newPassword: passwordData.newPassword }) });
+      if (res.ok) { setShowPasswordModal(false); setPasswordData({ currentPassword: "", newPassword: "", confirmPassword: "" }); setSuccessMessage("Password changed!"); setTimeout(() => setSuccessMessage(""), 2000); }
+      else { const err = await res.json(); setPasswordError(err.error || "Failed"); }
+    } catch (e) { setPasswordError("Error occurred"); }
+    finally { setSavingPassword(false); }
   };
 
   const handleDeleteAccount = async () => {
     if (deleteConfirmText !== "DELETE") return;
-    
-    try {
-      const res = await fetch("/api/profile", {
-        method: "DELETE",
-      });
-      if (res.ok) {
-        await signOut({ callbackUrl: "/" });
-      } else {
-        alert("Failed to delete account");
-      }
-    } catch (err) {
-      console.error("Error deleting account:", err);
-    }
+    try { const res = await fetch("/api/profile", { method: "DELETE" }); if (res.ok) await signOut({ callbackUrl: "/" }); } catch (e) { console.error(e); }
   };
 
-  const applyTheme = (newTheme: "light" | "dark" | "system") => {
-    setTheme(newTheme);
-    if (newTheme === "dark") {
-      document.documentElement.classList.add("dark");
-    } else if (newTheme === "light") {
-      document.documentElement.classList.remove("dark");
-    } else {
-      // System preference
-      if (window.matchMedia("(prefers-color-scheme: dark)").matches) {
-        document.documentElement.classList.add("dark");
-      } else {
-        document.documentElement.classList.remove("dark");
-      }
-    }
+  const applyTheme = (t: "light" | "dark" | "system") => {
+    setTheme(t);
+    if (t === "dark") document.documentElement.classList.add("dark");
+    else if (t === "light") document.documentElement.classList.remove("dark");
+    else { if (window.matchMedia("(prefers-color-scheme: dark)").matches) document.documentElement.classList.add("dark"); else document.documentElement.classList.remove("dark"); }
   };
 
-  const getInitials = (name: string | null) => {
-    if (!name) return "U";
-    return name
-      .split(" ")
-      .map((n) => n[0])
-      .join("")
-      .toUpperCase()
-      .slice(0, 2);
-  };
+  const getInitials = (name: string | null) => name ? name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2) : "U";
 
-  if (status === "loading" || loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-600"></div>
-      </div>
-    );
-  }
-
+  if (status === "loading" || loading) return <div className="h-screen flex items-center justify-center bg-background"><Loader2 className="w-5 h-5 animate-spin text-primary" /></div>;
   if (!session) return null;
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      {/* Success Toast */}
+    <div className="min-h-screen bg-background">
       {successMessage && (
-        <div className="fixed top-4 right-4 z-50 animate-slideUp">
-          <div className="flex items-center gap-2 px-4 py-3 bg-green-500 text-white rounded-lg shadow-lg">
-            <Check className="w-5 h-5" />
-            {successMessage}
-          </div>
+        <div className="fixed top-3 right-3 z-50 animate-slideDown">
+          <div className="flex items-center gap-1.5 px-3 py-1.5 bg-green-500 text-white text-xs rounded-md shadow-soft"><Check className="w-3.5 h-3.5" />{successMessage}</div>
         </div>
       )}
 
       {/* Header */}
-      <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-10">
-        <div className="max-w-4xl mx-auto px-4 py-4 flex items-center gap-4">
-          <button
-            onClick={() => router.push("/dashboard")}
-            className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-smooth"
-          >
-            <ArrowLeft className="w-5 h-5" />
-          </button>
-          <h1 className="text-xl font-semibold">Settings</h1>
-        </div>
-      </div>
+      <header className="h-12 px-4 flex items-center gap-3 border-b bg-card sticky top-0 z-10">
+        <button onClick={() => router.push("/dashboard")} className="p-1.5 hover:bg-muted rounded-md"><ArrowLeft className="w-4 h-4" /></button>
+        <h1 className="text-sm font-semibold">Settings</h1>
+      </header>
 
-      <div className="max-w-4xl mx-auto px-4 py-6">
-        {/* Profile Header Card */}
-        <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 mb-6 shadow-sm">
-          <div className="flex flex-col md:flex-row items-center gap-6">
+      <div className="max-w-2xl mx-auto px-4 py-4">
+        {/* Profile Card */}
+        <div className="bg-card rounded-xl p-4 mb-4 shadow-soft">
+          <div className="flex items-center gap-4">
             <div className="relative">
-              <Avatar className="w-24 h-24 border-4 border-white shadow-lg">
+              <Avatar className="w-16 h-16 border-2 border-background shadow-soft">
                 <AvatarImage src={avatarUrl || session.user?.image || undefined} />
-                <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white text-2xl">
-                  {getInitials(profile?.name || session.user?.name || null)}
-                </AvatarFallback>
+                <AvatarFallback className="bg-gradient-to-br from-blue-500 to-indigo-600 text-white text-lg">{getInitials(profile?.name || session.user?.name || null)}</AvatarFallback>
               </Avatar>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                onChange={handleAvatarUpload}
-                className="hidden"
-              />
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                disabled={uploadingAvatar}
-                className="absolute bottom-0 right-0 p-2 bg-blue-600 rounded-full text-white hover:bg-blue-700 shadow-lg disabled:opacity-50"
-              >
-                {uploadingAvatar ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <Camera className="w-4 h-4" />
-                )}
+              <input ref={fileInputRef} type="file" accept="image/*" onChange={handleAvatarUpload} className="hidden" />
+              <button onClick={() => fileInputRef.current?.click()} disabled={uploadingAvatar} className="absolute -bottom-1 -right-1 p-1.5 bg-primary rounded-full text-primary-foreground hover:opacity-90 shadow-soft disabled:opacity-50">
+                {uploadingAvatar ? <Loader2 className="w-3 h-3 animate-spin" /> : <Camera className="w-3 h-3" />}
               </button>
             </div>
-            <div className="text-center md:text-left flex-1">
-              <h2 className="text-2xl font-bold">{profile?.name || "User"}</h2>
-              <p className="text-gray-500">{profile?.email}</p>
-              <div className="flex flex-wrap gap-2 mt-2 justify-center md:justify-start">
+            <div className="flex-1 min-w-0">
+              <h2 className="text-base font-semibold truncate">{profile?.name || "User"}</h2>
+              <p className="text-xs text-muted-foreground truncate">{profile?.email}</p>
+              <div className="flex items-center gap-2 mt-1.5">
                 <div className="relative">
-                  <button
-                    onClick={() => setShowStatusDropdown(!showStatusDropdown)}
-                    className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition-smooth"
-                  >
-                    <Circle className={`w-2.5 h-2.5 ${STATUS_OPTIONS.find(s => s.value === currentStatus)?.color || "bg-gray-400"} rounded-full`} />
-                    <span className="text-sm font-medium capitalize">{currentStatus}</span>
+                  <button onClick={() => setShowStatusDropdown(!showStatusDropdown)} className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-muted/50 hover:bg-muted text-xs">
+                    <Circle className={`w-2 h-2 ${STATUS_OPTIONS.find(s => s.value === currentStatus)?.color} rounded-full`} />
+                    <span className="capitalize">{currentStatus}</span>
                   </button>
                   {showStatusDropdown && (
-                    <div className="absolute top-full left-0 mt-2 w-40 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 overflow-hidden z-20 animate-fadeIn">
-                      {STATUS_OPTIONS.map((status) => (
-                        <button
-                          key={status.value}
-                          onClick={() => handleStatusChange(status.value)}
-                          className={`w-full flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 dark:hover:bg-gray-700 transition-smooth ${
-                            currentStatus === status.value ? "bg-blue-50 dark:bg-blue-900/20" : ""
-                          }`}
-                        >
-                          <Circle className={`w-2.5 h-2.5 ${status.color} rounded-full`} />
-                          <span className="text-sm">{status.label}</span>
-                          {currentStatus === status.value && (
-                            <Check className="w-4 h-4 text-blue-600 ml-auto" />
-                          )}
+                    <div className="absolute top-full left-0 mt-1 w-32 bg-card rounded-md shadow-soft-lg border overflow-hidden z-20 animate-scaleIn">
+                      {STATUS_OPTIONS.map(s => (
+                        <button key={s.value} onClick={() => handleStatusChange(s.value)} className={`w-full flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-muted ${currentStatus === s.value ? "bg-primary/5" : ""}`}>
+                          <Circle className={`w-2 h-2 ${s.color} rounded-full`} />{s.label}
+                          {currentStatus === s.value && <Check className="w-3 h-3 text-primary ml-auto" />}
                         </button>
                       ))}
                     </div>
                   )}
                 </div>
-                {profile?.occupation && (
-                  <Badge variant="secondary">{profile.occupation}</Badge>
-                )}
+                {profile?.occupation && <Badge variant="secondary" className="text-[10px] px-1.5 py-0">{profile.occupation}</Badge>}
               </div>
             </div>
           </div>
         </div>
 
-        {/* Tab Navigation */}
-        <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
-          {[
-            { id: "profile", icon: User, label: "Profile" },
-            { id: "privacy", icon: Shield, label: "Privacy" },
-            { id: "notifications", icon: Bell, label: "Notifications" },
-            { id: "appearance", icon: Palette, label: "Appearance" },
-          ].map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id as typeof activeTab)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition whitespace-nowrap ${
-                activeTab === tab.id
-                  ? "bg-blue-600 text-white"
-                  : "bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
-              }`}
-            >
-              <tab.icon className="w-4 h-4" />
-              {tab.label}
+        {/* Tabs */}
+        <div className="flex gap-1 mb-4 overflow-x-auto scrollbar-none pb-1">
+          {[{ id: "profile", icon: User, label: "Profile" }, { id: "privacy", icon: Shield, label: "Privacy" }, { id: "notifications", icon: Bell, label: "Alerts" }, { id: "appearance", icon: Palette, label: "Theme" }].map(tab => (
+            <button key={tab.id} onClick={() => setActiveTab(tab.id as typeof activeTab)} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium whitespace-nowrap transition-colors ${activeTab === tab.id ? "bg-primary text-primary-foreground" : "bg-card text-muted-foreground hover:bg-muted"}`}>
+              <tab.icon className="w-3.5 h-3.5" />{tab.label}
             </button>
           ))}
         </div>
 
         {/* Profile Tab */}
         {activeTab === "profile" && (
-          <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm space-y-6">
-            <h3 className="text-lg font-semibold mb-4">Personal Information</h3>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="bg-card rounded-xl p-4 shadow-soft space-y-4">
+            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Personal Info</h3>
+            <div className="grid grid-cols-2 gap-3">
+              {[
+                { icon: User, label: "Display Name", key: "name", placeholder: "Your name" },
+                { icon: User, label: "Real Name", key: "realName", placeholder: "Full name" },
+                { icon: Briefcase, label: "Occupation", key: "occupation", placeholder: "Job title" },
+                { icon: MapPin, label: "Location", key: "location", placeholder: "City, Country" },
+                { icon: Globe, label: "Website", key: "website", placeholder: "https://..." },
+                { icon: Phone, label: "Phone", key: "phone", placeholder: "+1 234..." },
+              ].map(field => (
+                <div key={field.key}>
+                  <label className="flex items-center gap-1 text-[10px] font-medium text-muted-foreground mb-1"><field.icon className="w-3 h-3" />{field.label}</label>
+                  <Input value={formData[field.key as keyof typeof formData]} onChange={(e) => setFormData({ ...formData, [field.key]: e.target.value })} placeholder={field.placeholder} className="h-8 text-xs" />
+                </div>
+              ))}
               <div>
-                <label className="block text-sm font-medium mb-1 flex items-center gap-2">
-                  <User className="w-4 h-4" /> Display Name
-                </label>
-                <Input
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  placeholder="Your display name"
-                />
+                <label className="flex items-center gap-1 text-[10px] font-medium text-muted-foreground mb-1"><Calendar className="w-3 h-3" />Birthday</label>
+                <Input type="date" value={formData.dateOfBirth} onChange={(e) => setFormData({ ...formData, dateOfBirth: e.target.value })} className="h-8 text-xs" />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1 flex items-center gap-2">
-                  <User className="w-4 h-4" /> Real Name
-                </label>
-                <Input
-                  value={formData.realName}
-                  onChange={(e) => setFormData({ ...formData, realName: e.target.value })}
-                  placeholder="Your real name"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1 flex items-center gap-2">
-                  <Briefcase className="w-4 h-4" /> Occupation
-                </label>
-                <Input
-                  value={formData.occupation}
-                  onChange={(e) => setFormData({ ...formData, occupation: e.target.value })}
-                  placeholder="Your occupation"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1 flex items-center gap-2">
-                  <MapPin className="w-4 h-4" /> Location
-                </label>
-                <Input
-                  value={formData.location}
-                  onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                  placeholder="City, Country"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1 flex items-center gap-2">
-                  <Globe className="w-4 h-4" /> Website
-                </label>
-                <Input
-                  value={formData.website}
-                  onChange={(e) => setFormData({ ...formData, website: e.target.value })}
-                  placeholder="https://yourwebsite.com"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1 flex items-center gap-2">
-                  <Phone className="w-4 h-4" /> Phone
-                </label>
-                <Input
-                  value={formData.phone}
-                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                  placeholder="+1 234 567 890"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1 flex items-center gap-2">
-                  <Calendar className="w-4 h-4" /> Date of Birth
-                </label>
-                <Input
-                  type="date"
-                  value={formData.dateOfBirth}
-                  onChange={(e) => setFormData({ ...formData, dateOfBirth: e.target.value })}
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Gender</label>
-                <select
-                  value={formData.gender}
-                  onChange={(e) => setFormData({ ...formData, gender: e.target.value })}
-                  className="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600"
-                >
-                  <option value="">Select gender</option>
-                  <option value="male">Male</option>
-                  <option value="female">Female</option>
-                  <option value="other">Other</option>
-                  <option value="prefer_not_to_say">Prefer not to say</option>
+                <label className="text-[10px] font-medium text-muted-foreground mb-1 block">Gender</label>
+                <select value={formData.gender} onChange={(e) => setFormData({ ...formData, gender: e.target.value })} className="w-full h-8 px-2 text-xs bg-background border rounded-md">
+                  <option value="">Select</option><option value="male">Male</option><option value="female">Female</option><option value="other">Other</option>
                 </select>
               </div>
             </div>
-
             <div>
-              <label className="block text-sm font-medium mb-1 flex items-center gap-2">
-                <FileText className="w-4 h-4" /> Bio
-              </label>
-              <textarea
-                value={formData.bio}
-                onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
-                placeholder="Tell us about yourself..."
-                className="w-full px-3 py-2 border rounded-lg resize-none h-24 dark:bg-gray-700 dark:border-gray-600"
-                maxLength={500}
-              />
-              <p className="text-xs text-gray-500 mt-1">{formData.bio.length}/500 characters</p>
+              <label className="flex items-center gap-1 text-[10px] font-medium text-muted-foreground mb-1"><FileText className="w-3 h-3" />Bio</label>
+              <textarea value={formData.bio} onChange={(e) => setFormData({ ...formData, bio: e.target.value })} placeholder="About you..." className="w-full px-3 py-2 text-xs bg-background border rounded-md resize-none h-16" maxLength={200} />
+              <p className="text-[9px] text-muted-foreground mt-0.5">{formData.bio.length}/200</p>
             </div>
-
             <div>
-              <label className="block text-sm font-medium mb-1 flex items-center gap-2">
-                <Heart className="w-4 h-4" /> Hobbies & Interests
-              </label>
-              <Input
-                value={formData.hobbies}
-                onChange={(e) => setFormData({ ...formData, hobbies: e.target.value })}
-                placeholder="Reading, Gaming, Music, etc."
-              />
-              <p className="text-xs text-gray-500 mt-1">Separate with commas</p>
+              <label className="flex items-center gap-1 text-[10px] font-medium text-muted-foreground mb-1"><Heart className="w-3 h-3" />Interests</label>
+              <Input value={formData.hobbies} onChange={(e) => setFormData({ ...formData, hobbies: e.target.value })} placeholder="Reading, Music..." className="h-8 text-xs" />
             </div>
-
-            <Button
-              onClick={handleSaveProfile}
-              disabled={saving}
-              className="w-full md:w-auto bg-gradient-to-r from-blue-600 to-purple-600"
-            >
-              <Save className="w-4 h-4 mr-2" />
-              {saving ? "Saving..." : "Save Changes"}
+            <Button onClick={handleSaveProfile} disabled={saving} size="sm" className="gradient-primary text-xs h-8">
+              <Save className="w-3 h-3 mr-1.5" />{saving ? "Saving..." : "Save Changes"}
             </Button>
           </div>
         )}
 
         {/* Privacy Tab */}
         {activeTab === "privacy" && (
-          <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm space-y-6">
-            <h3 className="text-lg font-semibold mb-4">Privacy Settings</h3>
-
-            <div className="space-y-4">
-              <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                <div className="flex items-center gap-3">
-                  <Mail className="w-5 h-5 text-gray-500" />
-                  <div>
-                    <p className="font-medium">Show Email Address</p>
-                    <p className="text-sm text-gray-500">Let others see your email</p>
-                  </div>
-                </div>
-                <Switch checked={showEmail} onCheckedChange={setShowEmail} />
+          <div className="bg-card rounded-xl p-4 shadow-soft space-y-3">
+            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Visibility</h3>
+            {[
+              { icon: Mail, label: "Show Email", desc: "Let others see your email", state: showEmail, setState: setShowEmail },
+              { icon: Eye, label: "Online Status", desc: "Show when online", state: showOnlineStatus, setState: setShowOnlineStatus },
+              { icon: EyeOff, label: "Last Seen", desc: "Show last active", state: showLastSeen, setState: setShowLastSeen },
+            ].map((item, i) => (
+              <div key={i} className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
+                <div className="flex items-center gap-2.5"><item.icon className="w-4 h-4 text-muted-foreground" /><div><p className="text-xs font-medium">{item.label}</p><p className="text-[10px] text-muted-foreground">{item.desc}</p></div></div>
+                <Switch checked={item.state} onCheckedChange={item.setState} />
               </div>
-
-              <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                <div className="flex items-center gap-3">
-                  <Eye className="w-5 h-5 text-gray-500" />
-                  <div>
-                    <p className="font-medium">Online Status</p>
-                    <p className="text-sm text-gray-500">Show when you're online</p>
-                  </div>
-                </div>
-                <Switch checked={showOnlineStatus} onCheckedChange={setShowOnlineStatus} />
-              </div>
-
-              <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                <div className="flex items-center gap-3">
-                  <EyeOff className="w-5 h-5 text-gray-500" />
-                  <div>
-                    <p className="font-medium">Last Seen</p>
-                    <p className="text-sm text-gray-500">Show last active time</p>
-                  </div>
-                </div>
-                <Switch checked={showLastSeen} onCheckedChange={setShowLastSeen} />
-              </div>
-            </div>
-
-            <div className="border-t pt-6 mt-6 space-y-4">
-              <h4 className="font-medium">Data & Security</h4>
-
-              <button
-                onClick={handleExportData}
-                className="w-full flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600"
-              >
-                <div className="flex items-center gap-3">
-                  <Download className="w-5 h-5 text-blue-500" />
-                  <div className="text-left">
-                    <p className="font-medium">Export Your Data</p>
-                    <p className="text-sm text-gray-500">Download all your data</p>
-                  </div>
-                </div>
+            ))}
+            <div className="border-t pt-3 mt-3 space-y-2">
+              <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Security</h4>
+              <button onClick={handleExportData} className="w-full flex items-center gap-2.5 p-3 bg-muted/30 rounded-lg hover:bg-muted/50 transition-colors">
+                <Download className="w-4 h-4 text-blue-500" /><div className="text-left"><p className="text-xs font-medium">Export Data</p><p className="text-[10px] text-muted-foreground">Download your data</p></div>
               </button>
-
-              <button
-                onClick={() => setShowPasswordModal(true)}
-                className="w-full flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 transition-smooth"
-              >
-                <div className="flex items-center gap-3">
-                  <Lock className="w-5 h-5 text-yellow-500" />
-                  <div className="text-left">
-                    <p className="font-medium">Change Password</p>
-                    <p className="text-sm text-gray-500">Update your password</p>
-                  </div>
-                </div>
+              <button onClick={() => setShowPasswordModal(true)} className="w-full flex items-center gap-2.5 p-3 bg-muted/30 rounded-lg hover:bg-muted/50 transition-colors">
+                <Lock className="w-4 h-4 text-amber-500" /><div className="text-left"><p className="text-xs font-medium">Change Password</p><p className="text-[10px] text-muted-foreground">Update password</p></div>
               </button>
-
-              <button
-                onClick={() => setShowDeleteModal(true)}
-                className="w-full flex items-center justify-between p-4 bg-red-50 dark:bg-red-900/20 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/30 transition-smooth"
-              >
-                <div className="flex items-center gap-3">
-                  <Trash2 className="w-5 h-5 text-red-500" />
-                  <div className="text-left">
-                    <p className="font-medium text-red-600">Delete Account</p>
-                    <p className="text-sm text-red-400">Permanently delete your account</p>
-                  </div>
-                </div>
+              <button onClick={() => setShowDeleteModal(true)} className="w-full flex items-center gap-2.5 p-3 bg-red-500/10 rounded-lg hover:bg-red-500/20 transition-colors">
+                <Trash2 className="w-4 h-4 text-red-500" /><div className="text-left"><p className="text-xs font-medium text-red-600">Delete Account</p><p className="text-[10px] text-red-400">Permanently delete</p></div>
               </button>
             </div>
           </div>
@@ -692,218 +281,68 @@ export default function ProfilePage() {
 
         {/* Notifications Tab */}
         {activeTab === "notifications" && (
-          <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm space-y-6">
-            <h3 className="text-lg font-semibold mb-4">Notification Preferences</h3>
-
-            <div className="space-y-4">
-              <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                <div className="flex items-center gap-3">
-                  <Mail className="w-5 h-5 text-gray-500" />
-                  <div>
-                    <p className="font-medium">Email Notifications</p>
-                    <p className="text-sm text-gray-500">Receive email for important updates</p>
-                  </div>
-                </div>
-                <Switch checked={emailNotifications} onCheckedChange={setEmailNotifications} />
+          <div className="bg-card rounded-xl p-4 shadow-soft space-y-3">
+            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Preferences</h3>
+            {[
+              { icon: Mail, label: "Email", desc: "Important updates", state: emailNotifications, setState: setEmailNotifications },
+              { icon: Bell, label: "Push", desc: "New messages", state: pushNotifications, setState: setPushNotifications },
+              { icon: Eye, label: "Previews", desc: "Show content", state: messagePreview, setState: setMessagePreview },
+            ].map((item, i) => (
+              <div key={i} className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
+                <div className="flex items-center gap-2.5"><item.icon className="w-4 h-4 text-muted-foreground" /><div><p className="text-xs font-medium">{item.label}</p><p className="text-[10px] text-muted-foreground">{item.desc}</p></div></div>
+                <Switch checked={item.state} onCheckedChange={item.setState} />
               </div>
-
-              <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                <div className="flex items-center gap-3">
-                  <Bell className="w-5 h-5 text-gray-500" />
-                  <div>
-                    <p className="font-medium">Push Notifications</p>
-                    <p className="text-sm text-gray-500">Get push notifications for messages</p>
-                  </div>
-                </div>
-                <Switch checked={pushNotifications} onCheckedChange={setPushNotifications} />
-              </div>
-
-              <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                <div className="flex items-center gap-3">
-                  <Eye className="w-5 h-5 text-gray-500" />
-                  <div>
-                    <p className="font-medium">Message Preview</p>
-                    <p className="text-sm text-gray-500">Show message content in notifications</p>
-                  </div>
-                </div>
-                <Switch checked={messagePreview} onCheckedChange={setMessagePreview} />
-              </div>
-            </div>
+            ))}
           </div>
         )}
 
         {/* Appearance Tab */}
         {activeTab === "appearance" && (
-          <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm space-y-6">
-            <h3 className="text-lg font-semibold mb-4">Appearance</h3>
-
-            <div>
-              <label className="block text-sm font-medium mb-3">Theme</label>
-              <div className="grid grid-cols-3 gap-3">
-                {[
-                  { id: "light", label: "Light", icon: Sun },
-                  { id: "dark", label: "Dark", icon: Moon },
-                  { id: "system", label: "System", icon: Monitor },
-                ].map((t) => (
-                  <button
-                    key={t.id}
-                    onClick={() => applyTheme(t.id as typeof theme)}
-                    className={`p-4 rounded-xl border-2 text-center transition-smooth ${
-                      theme === t.id
-                        ? "border-blue-600 bg-blue-50 dark:bg-blue-900/20"
-                        : "border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500"
-                    }`}
-                  >
-                    <t.icon className={`w-6 h-6 mx-auto mb-2 ${theme === t.id ? "text-blue-600" : "text-gray-500"}`} />
-                    <span className="text-sm font-medium">{t.label}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="border-t pt-6">
-              <h4 className="font-medium mb-4">Chat Settings</h4>
-              <div className="space-y-4">
-                <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                  <div>
-                    <p className="font-medium">Compact Mode</p>
-                    <p className="text-sm text-gray-500">Show more messages on screen</p>
-                  </div>
-                  <Switch />
-                </div>
-                <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                  <div>
-                    <p className="font-medium">Show Timestamps</p>
-                    <p className="text-sm text-gray-500">Display message times</p>
-                  </div>
-                  <Switch defaultChecked />
-                </div>
-              </div>
+          <div className="bg-card rounded-xl p-4 shadow-soft space-y-4">
+            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Theme</h3>
+            <div className="grid grid-cols-3 gap-2">
+              {[{ id: "light", label: "Light", icon: Sun }, { id: "dark", label: "Dark", icon: Moon }, { id: "system", label: "Auto", icon: Monitor }].map(t => (
+                <button key={t.id} onClick={() => applyTheme(t.id as typeof theme)} className={`p-3 rounded-lg border text-center transition-colors ${theme === t.id ? "border-primary bg-primary/5" : "border-transparent bg-muted/30 hover:bg-muted/50"}`}>
+                  <t.icon className={`w-5 h-5 mx-auto mb-1 ${theme === t.id ? "text-primary" : "text-muted-foreground"}`} />
+                  <span className="text-xs font-medium">{t.label}</span>
+                </button>
+              ))}
             </div>
           </div>
         )}
 
-        {/* Account Info */}
-        <div className="mt-6 text-center text-sm text-gray-500">
-          <p>Member since {profile?.createdAt ? new Date(profile.createdAt).toLocaleDateString() : "..."}</p>
-        </div>
+        <p className="text-center text-[10px] text-muted-foreground mt-4">Member since {profile?.createdAt ? new Date(profile.createdAt).toLocaleDateString() : "..."}</p>
       </div>
 
-      {/* Password Change Modal */}
+      {/* Password Modal */}
       {showPasswordModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 animate-fadeIn">
-          <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 max-w-md w-full animate-slideUp">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="p-2 bg-yellow-100 dark:bg-yellow-900/30 rounded-full">
-                <Lock className="w-5 h-5 text-yellow-600" />
-              </div>
-              <h3 className="text-lg font-semibold">Change Password</h3>
+          <div className="bg-card rounded-lg p-4 max-w-xs w-full shadow-soft-lg animate-scaleIn">
+            <div className="flex items-center gap-2 mb-3"><div className="p-1.5 bg-amber-100 dark:bg-amber-900/30 rounded-full"><Lock className="w-4 h-4 text-amber-600" /></div><h3 className="text-sm font-semibold">Change Password</h3></div>
+            {passwordError && <div className="mb-3 p-2 bg-red-500/10 border border-red-500/20 rounded text-red-600 text-xs">{passwordError}</div>}
+            <div className="space-y-2">
+              <Input type="password" value={passwordData.currentPassword} onChange={(e) => setPasswordData({ ...passwordData, currentPassword: e.target.value })} placeholder="Current password" className="h-8 text-xs" />
+              <Input type="password" value={passwordData.newPassword} onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })} placeholder="New password" className="h-8 text-xs" />
+              <Input type="password" value={passwordData.confirmPassword} onChange={(e) => setPasswordData({ ...passwordData, confirmPassword: e.target.value })} placeholder="Confirm password" className="h-8 text-xs" />
             </div>
-            
-            {passwordError && (
-              <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-red-600 text-sm">
-                {passwordError}
-              </div>
-            )}
-
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium mb-1">Current Password</label>
-                <Input
-                  type="password"
-                  value={passwordData.currentPassword}
-                  onChange={(e) => setPasswordData({ ...passwordData, currentPassword: e.target.value })}
-                  placeholder="Enter current password"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">New Password</label>
-                <Input
-                  type="password"
-                  value={passwordData.newPassword}
-                  onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })}
-                  placeholder="Enter new password"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Confirm New Password</label>
-                <Input
-                  type="password"
-                  value={passwordData.confirmPassword}
-                  onChange={(e) => setPasswordData({ ...passwordData, confirmPassword: e.target.value })}
-                  placeholder="Confirm new password"
-                />
-              </div>
-            </div>
-
-            <div className="flex gap-3 mt-6">
-              <button
-                onClick={() => {
-                  setShowPasswordModal(false);
-                  setPasswordData({ currentPassword: "", newPassword: "", confirmPassword: "" });
-                  setPasswordError("");
-                }}
-                className="flex-1 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-smooth"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handlePasswordChange}
-                disabled={savingPassword}
-                className="flex-1 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-smooth flex items-center justify-center gap-2"
-              >
-                {savingPassword && <Loader2 className="w-4 h-4 animate-spin" />}
-                {savingPassword ? "Saving..." : "Change Password"}
-              </button>
+            <div className="flex gap-2 mt-4">
+              <button onClick={() => { setShowPasswordModal(false); setPasswordData({ currentPassword: "", newPassword: "", confirmPassword: "" }); setPasswordError(""); }} className="flex-1 py-1.5 text-xs border rounded hover:bg-muted">Cancel</button>
+              <button onClick={handlePasswordChange} disabled={savingPassword} className="flex-1 py-1.5 text-xs bg-primary text-primary-foreground rounded disabled:opacity-50 flex items-center justify-center gap-1">{savingPassword && <Loader2 className="w-3 h-3 animate-spin" />}{savingPassword ? "Saving" : "Save"}</button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Delete Account Modal */}
+      {/* Delete Modal */}
       {showDeleteModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 animate-fadeIn">
-          <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 max-w-md w-full animate-slideUp">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="p-2 bg-red-100 dark:bg-red-900/30 rounded-full">
-                <AlertTriangle className="w-5 h-5 text-red-600" />
-              </div>
-              <h3 className="text-lg font-semibold text-red-600">Delete Account</h3>
-            </div>
-            
-            <p className="text-gray-600 dark:text-gray-400 mb-4">
-              This action cannot be undone. All your data, messages, and connections will be permanently deleted.
-            </p>
-
-            <div className="mb-4">
-              <label className="block text-sm font-medium mb-2">
-                Type <span className="font-bold text-red-600">DELETE</span> to confirm
-              </label>
-              <Input
-                value={deleteConfirmText}
-                onChange={(e) => setDeleteConfirmText(e.target.value)}
-                placeholder="Type DELETE to confirm"
-                className="border-red-300 focus:border-red-500"
-              />
-            </div>
-
-            <div className="flex gap-3">
-              <button
-                onClick={() => {
-                  setShowDeleteModal(false);
-                  setDeleteConfirmText("");
-                }}
-                className="flex-1 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-smooth"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleDeleteAccount}
-                disabled={deleteConfirmText !== "DELETE"}
-                className="flex-1 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-smooth"
-              >
-                Delete Account
-              </button>
+          <div className="bg-card rounded-lg p-4 max-w-xs w-full shadow-soft-lg animate-scaleIn">
+            <div className="flex items-center gap-2 mb-3"><div className="p-1.5 bg-red-100 dark:bg-red-900/30 rounded-full"><AlertTriangle className="w-4 h-4 text-red-600" /></div><h3 className="text-sm font-semibold text-red-600">Delete Account</h3></div>
+            <p className="text-xs text-muted-foreground mb-3">This cannot be undone. All data will be permanently deleted.</p>
+            <div className="mb-3"><label className="text-[10px] font-medium mb-1 block">Type <span className="font-bold text-red-600">DELETE</span> to confirm</label><Input value={deleteConfirmText} onChange={(e) => setDeleteConfirmText(e.target.value)} placeholder="DELETE" className="h-8 text-xs border-red-300 focus:border-red-500" /></div>
+            <div className="flex gap-2">
+              <button onClick={() => { setShowDeleteModal(false); setDeleteConfirmText(""); }} className="flex-1 py-1.5 text-xs border rounded hover:bg-muted">Cancel</button>
+              <button onClick={handleDeleteAccount} disabled={deleteConfirmText !== "DELETE"} className="flex-1 py-1.5 text-xs bg-red-600 text-white rounded disabled:opacity-50">Delete</button>
             </div>
           </div>
         </div>
