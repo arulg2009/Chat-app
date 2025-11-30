@@ -3,10 +3,11 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { MessageCircle, User, Mail, Lock, Eye, EyeOff, Loader2, ArrowLeft, Check } from "lucide-react";
+import { MessageCircle, User, Mail, Lock, Eye, EyeOff, Loader2, ArrowLeft, Check, AtSign } from "lucide-react";
 
 export default function RegisterPage() {
-  const [name, setName] = useState("");
+  const [realName, setRealName] = useState("");
+  const [nickname, setNickname] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -27,18 +28,54 @@ export default function RegisterPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
-    if (password !== confirmPassword) { setError("Passwords don't match"); return; }
-    if (password.length < 6) { setError("Password must be at least 6 characters"); return; }
+
+    // Validation
+    if (!realName.trim()) {
+      setError("Please enter your real name");
+      return;
+    }
+    if (realName.trim().length < 2) {
+      setError("Real name must be at least 2 characters");
+      return;
+    }
+    if (!nickname.trim()) {
+      setError("Please enter a nickname");
+      return;
+    }
+    if (nickname.trim().length < 2) {
+      setError("Nickname must be at least 2 characters");
+      return;
+    }
+    if (!email.trim()) {
+      setError("Please enter your email");
+      return;
+    }
+    if (password !== confirmPassword) {
+      setError("Passwords don't match");
+      return;
+    }
+    if (password.length < 6) {
+      setError("Password must be at least 6 characters");
+      return;
+    }
+
     setLoading(true);
     try {
       const res = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, email, password }),
+        body: JSON.stringify({ 
+          realName: realName.trim(),
+          nickname: nickname.trim(),
+          email: email.trim().toLowerCase(),
+          password 
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Registration failed");
-      router.push("/auth/signin?registered=true");
+      
+      // Redirect to verification page with email
+      router.push(`/auth/verify-email?email=${encodeURIComponent(email.trim().toLowerCase())}`);
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -73,22 +110,39 @@ export default function RegisterPage() {
 
           <form onSubmit={handleSubmit} className="space-y-3">
             <div>
-              <label className="text-xs font-medium text-muted-foreground mb-1 block">Name</label>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">Full Name *</label>
               <div className="relative">
                 <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <input
                   type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
+                  value={realName}
+                  onChange={(e) => setRealName(e.target.value)}
                   required
                   className="w-full pl-9 pr-3 py-2 text-sm border rounded-lg bg-background focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
-                  placeholder="Your name"
+                  placeholder="Your full name"
                 />
               </div>
+              <p className="text-[10px] text-muted-foreground mt-1">Used for account recovery</p>
             </div>
 
             <div>
-              <label className="text-xs font-medium text-muted-foreground mb-1 block">Email</label>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">Nickname *</label>
+              <div className="relative">
+                <AtSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <input
+                  type="text"
+                  value={nickname}
+                  onChange={(e) => setNickname(e.target.value)}
+                  required
+                  className="w-full pl-9 pr-3 py-2 text-sm border rounded-lg bg-background focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
+                  placeholder="Display name"
+                />
+              </div>
+              <p className="text-[10px] text-muted-foreground mt-1">This is how others will see you</p>
+            </div>
+
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">Email *</label>
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <input
@@ -103,7 +157,7 @@ export default function RegisterPage() {
             </div>
 
             <div>
-              <label className="text-xs font-medium text-muted-foreground mb-1 block">Password</label>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">Password *</label>
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <input
@@ -133,7 +187,7 @@ export default function RegisterPage() {
             </div>
 
             <div>
-              <label className="text-xs font-medium text-muted-foreground mb-1 block">Confirm</label>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">Confirm Password *</label>
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <input
@@ -153,7 +207,7 @@ export default function RegisterPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-2 text-sm font-medium text-white gradient-primary rounded-lg hover:opacity-90 disabled:opacity-50 transition-opacity mt-4"
+              className="w-full py-2.5 text-sm font-medium text-white gradient-primary rounded-lg hover:opacity-90 disabled:opacity-50 transition-opacity mt-4"
             >
               {loading ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : "Create Account"}
             </button>
@@ -165,8 +219,8 @@ export default function RegisterPage() {
           </p>
         </div>
 
-        <p className="text-xs text-center text-muted-foreground mt-6">
-          Built by <span className="font-medium text-foreground">Karthikeyan G</span>
+        <p className="text-[10px] text-center text-muted-foreground mt-6">
+          By creating an account, you agree to our Terms of Service
         </p>
       </div>
     </main>

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
+import crypto from "crypto";
 
 // Input sanitization helper
 function sanitizeInput(input: string): string {
@@ -11,6 +12,11 @@ function sanitizeInput(input: string): string {
 function isValidEmail(email: string): boolean {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   return emailRegex.test(email);
+}
+
+// Generate verification token
+function generateToken(): string {
+  return crypto.randomBytes(32).toString("hex");
 }
 
 export async function POST(request: Request) {
@@ -111,8 +117,35 @@ export async function POST(request: Request) {
         realName: sanitizedRealName, // real name for account recovery
         password: hashedPassword,
         status: "offline",
+        emailVerified: null, // Not verified yet
       },
     });
+
+    // Generate verification token
+    const token = generateToken();
+    const expires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+
+    // Save verification token
+    await prisma.verificationToken.create({
+      data: {
+        identifier: sanitizedEmail,
+        token,
+        expires,
+      },
+    });
+
+    // Log verification URL (in development)
+    const baseUrl = process.env.NEXTAUTH_URL || "http://localhost:3000";
+    const verificationUrl = `${baseUrl}/auth/verify-email?token=${token}`;
+    
+    console.log("=================================");
+    console.log("NEW USER REGISTRATION");
+    console.log(`Email: ${sanitizedEmail}`);
+    console.log(`Verification Link: ${verificationUrl}`);
+    console.log("=================================");
+
+    // TODO: Send verification email in production
+    // await sendVerificationEmail(sanitizedEmail, verificationUrl);
 
     // Return success (don't include password in response)
     return NextResponse.json({
@@ -123,6 +156,11 @@ export async function POST(request: Request) {
         name: user.name,
         realName: user.realName,
       },
+      // Only include in development for testing
+      ...(process.env.NODE_ENV === "development" && { 
+        verificationUrl,
+        note: "Verification URL only shown in development" 
+      }),
     });
   } catch (error: any) {
     console.error("Registration error:", error);

@@ -1,9 +1,9 @@
 "use client";
 
 import { signIn } from "next-auth/react";
-import { useState, Suspense } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Eye, EyeOff, Mail, Lock, MessageCircle } from "lucide-react";
+import { Eye, EyeOff, Mail, Lock, MessageCircle, CheckCircle, AlertCircle, Loader2 } from "lucide-react";
 import Link from "next/link";
 
 function SignInForm() {
@@ -14,8 +14,19 @@ function SignInForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
 
   const callbackUrl = searchParams?.get("callbackUrl") || "/dashboard";
+  const registered = searchParams?.get("registered");
+  const verified = searchParams?.get("verified");
+
+  useEffect(() => {
+    if (registered === "true") {
+      setSuccessMessage("Account created! Please check your email to verify your account.");
+    } else if (verified === "true") {
+      setSuccessMessage("Email verified successfully! You can now sign in.");
+    }
+  }, [registered, verified]);
 
   const validateEmail = (email: string) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -26,6 +37,7 @@ function SignInForm() {
     e.preventDefault();
     setIsLoading(true);
     setError("");
+    setSuccessMessage("");
 
     // Client-side validation
     if (!email.trim()) {
@@ -61,9 +73,14 @@ function SignInForm() {
       });
 
       if (result?.error) {
-        setError(result.error === "CredentialsSignin" 
-          ? "Invalid email or password. Please try again." 
-          : result.error);
+        // Check for specific error messages
+        if (result.error.includes("verify") || result.error.includes("Verify")) {
+          setError("Please verify your email before signing in. Check your inbox for the verification link.");
+        } else if (result.error === "CredentialsSignin") {
+          setError("Invalid email or password. Please try again.");
+        } else {
+          setError(result.error);
+        }
       } else if (result?.ok) {
         router.push(callbackUrl);
         router.refresh();
@@ -77,7 +94,7 @@ function SignInForm() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 px-4">
-      <div className="max-w-sm w-full space-y-6 bg-white dark:bg-gray-900 p-6 rounded-xl shadow-soft-lg border border-gray-100 dark:border-gray-800">
+      <div className="max-w-sm w-full space-y-5 bg-white dark:bg-gray-900 p-6 rounded-xl shadow-soft-lg border border-gray-100 dark:border-gray-800">
         {/* Header */}
         <div className="text-center">
           <div className="flex items-center justify-center gap-1.5 mb-3">
@@ -86,23 +103,41 @@ function SignInForm() {
             </div>
           </div>
           <h2 className="text-xl font-bold gradient-text">Welcome Back</h2>
-          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">Sign in to continue</p>
+          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">Sign in to continue to ChatApp</p>
         </div>
+
+        {/* Success Message */}
+        {successMessage && (
+          <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 text-green-700 dark:text-green-400 px-3 py-2.5 rounded-lg text-xs flex items-start gap-2">
+            <CheckCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+            <span>{successMessage}</span>
+          </div>
+        )}
 
         {/* Error Alert */}
         {error && (
-          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 px-3 py-2 rounded-lg text-xs flex items-center gap-2">
-            <svg className="w-4 h-4 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-            </svg>
-            {error}
+          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 px-3 py-2.5 rounded-lg text-xs flex items-start gap-2">
+            <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+            <div>
+              <span>{error}</span>
+              {error.includes("verify") && (
+                <Link 
+                  href={`/auth/verify-email?email=${encodeURIComponent(email)}`}
+                  className="block mt-1 text-primary hover:underline"
+                >
+                  Resend verification email
+                </Link>
+              )}
+            </div>
           </div>
         )}
 
         {/* Sign In Form */}
         <form onSubmit={handleCredentialsSignIn} className="space-y-4">
           <div>
-            <label htmlFor="email" className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Email</label>
+            <label htmlFor="email" className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+              Email Address
+            </label>
             <div className="relative">
               <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
               <input
@@ -113,7 +148,7 @@ function SignInForm() {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition"
+                className="w-full pl-10 pr-3 py-2.5 text-sm border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition"
                 placeholder="you@example.com"
                 disabled={isLoading}
               />
@@ -121,9 +156,13 @@ function SignInForm() {
           </div>
 
           <div>
-            <div className="flex items-center justify-between mb-1">
-              <label htmlFor="password" className="block text-xs font-medium text-gray-700 dark:text-gray-300">Password</label>
-              <Link href="/auth/forgot-password" className="text-xs text-primary hover:underline">Forgot?</Link>
+            <div className="flex items-center justify-between mb-1.5">
+              <label htmlFor="password" className="block text-xs font-medium text-gray-700 dark:text-gray-300">
+                Password
+              </label>
+              <Link href="/auth/forgot-password" className="text-xs text-primary hover:underline">
+                Forgot password?
+              </Link>
             </div>
             <div className="relative">
               <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -135,11 +174,16 @@ function SignInForm() {
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full pl-9 pr-10 py-2 text-sm border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition"
+                className="w-full pl-10 pr-10 py-2.5 text-sm border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition"
                 placeholder="••••••••"
                 disabled={isLoading}
               />
-              <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600">
+              <button 
+                type="button" 
+                onClick={() => setShowPassword(!showPassword)} 
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                tabIndex={-1}
+              >
                 {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
             </div>
@@ -152,24 +196,34 @@ function SignInForm() {
           >
             {isLoading ? (
               <>
-                <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
+                <Loader2 className="w-4 h-4 animate-spin" />
                 Signing in...
               </>
-            ) : "Sign In"}
+            ) : (
+              "Sign In"
+            )}
           </button>
         </form>
 
+        <div className="relative">
+          <div className="absolute inset-0 flex items-center">
+            <div className="w-full border-t border-gray-200 dark:border-gray-700"></div>
+          </div>
+          <div className="relative flex justify-center text-xs">
+            <span className="px-2 bg-white dark:bg-gray-900 text-gray-500">or</span>
+          </div>
+        </div>
+
         <p className="text-center text-xs text-gray-500 dark:text-gray-400">
           Don't have an account?{" "}
-          <Link href="/auth/register" className="font-medium text-primary hover:underline">Sign up</Link>
+          <Link href="/auth/register" className="font-medium text-primary hover:underline">
+            Create account
+          </Link>
         </p>
 
         <div className="pt-3 border-t border-gray-100 dark:border-gray-800">
           <p className="text-[10px] text-center text-gray-400 flex items-center justify-center gap-1">
-            <Lock className="w-3 h-3" /> Encrypted & secure
+            <Lock className="w-3 h-3" /> Secure & encrypted connection
           </p>
         </div>
       </div>
@@ -181,7 +235,7 @@ export default function SignInPage() {
   return (
     <Suspense fallback={
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
-        <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+        <Loader2 className="w-6 h-6 animate-spin text-primary" />
       </div>
     }>
       <SignInForm />
