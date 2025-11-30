@@ -16,10 +16,14 @@ function isValidEmail(email: string): boolean {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { email, password, realName, nickname } = body;
+    const { email, password, realName, nickname, name } = body;
+
+    // Support both old (name) and new (realName/nickname) field formats
+    const effectiveRealName = realName || name;
+    const effectiveNickname = nickname || name;
 
     // Validate required fields
-    if (!email || !password || !realName || !nickname) {
+    if (!email || !password || !effectiveRealName) {
       return NextResponse.json(
         { error: "All fields are required" },
         { status: 400 }
@@ -27,8 +31,8 @@ export async function POST(request: Request) {
     }
 
     // Sanitize inputs
-    const sanitizedRealName = sanitizeInput(realName);
-    const sanitizedNickname = sanitizeInput(nickname);
+    const sanitizedRealName = sanitizeInput(effectiveRealName);
+    const sanitizedNickname = sanitizeInput(effectiveNickname);
     const sanitizedEmail = email.toLowerCase().trim();
 
     // Validate real name

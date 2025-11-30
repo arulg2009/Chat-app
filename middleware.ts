@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import { getToken } from 'next-auth/jwt';
 
 // Rate limiting store (in-memory, use Redis in production)
 const ipRequestCounts = new Map<string, { count: number; timestamp: number }>();
@@ -16,17 +17,17 @@ const securityHeaders = {
 };
 
 // Paths that require authentication
-const protectedPaths = ['/dashboard', '/api/users', '/api/conversations', '/api/groups'];
+const protectedPaths = ['/dashboard', '/conversations', '/groups', '/profile'];
 
-// Paths that are public
-const publicPaths = ['/', '/auth/signin', '/auth/register', '/auth/error', '/api/auth'];
+// Paths that are public (auth routes where logged-in users should be redirected away)
+const authPaths = ['/auth/signin', '/auth/register'];
 
 function isProtectedPath(pathname: string): boolean {
   return protectedPaths.some((path) => pathname.startsWith(path));
 }
 
-function isPublicPath(pathname: string): boolean {
-  return publicPaths.some((path) => pathname.startsWith(path));
+function isAuthPath(pathname: string): boolean {
+  return authPaths.some((path) => pathname.startsWith(path));
 }
 
 function checkRateLimit(ip: string): boolean {
@@ -46,7 +47,7 @@ function checkRateLimit(ip: string): boolean {
   return true;
 }
 
-export function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const ip = request.ip || request.headers.get('x-forwarded-for') || 'unknown';
 
@@ -61,6 +62,21 @@ export function middleware(request: NextRequest) {
         }
       );
     }
+  }
+
+  // Check authentication using NextAuth JWT token
+  const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET });
+
+  // Redirect unauthenticated users from protected routes to signin
+  if (isProtectedPath(pathname) && !token) {
+    const signInUrl = new URL('/auth/signin', request.url);
+    signInUrl.searchParams.set('callbackUrl', pathname);
+    return NextResponse.redirect(signInUrl);
+  }
+
+  // Redirect authenticated users from auth pages to dashboard
+  if (isAuthPath(pathname) && token) {
+    return NextResponse.redirect(new URL('/dashboard', request.url));
   }
 
   // Create response with security headers

@@ -89,14 +89,18 @@ export default function DashboardPage() {
       const [convRes, groupsRes, requestsRes] = await Promise.all([
         fetch("/api/conversations"),
         fetch("/api/groups"),
-        fetch("/api/chat-requests"),
+        fetch("/api/chat-requests?type=received"),
       ]);
 
       if (convRes.ok) setConversations(await convRes.json());
       if (groupsRes.ok) setGroups(await groupsRes.json());
       if (requestsRes.ok) {
         const data = await requestsRes.json();
-        setChatRequests(data.received?.filter((r: ChatRequest) => r.status === "pending") || []);
+        // API returns array directly, filter for pending requests
+        const pendingRequests = Array.isArray(data) 
+          ? data.filter((r: ChatRequest) => r.status === "pending")
+          : [];
+        setChatRequests(pendingRequests);
       }
     } catch (e) {
       console.error("Error fetching data:", e);

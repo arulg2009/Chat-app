@@ -55,16 +55,26 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    // Format response
+    // Format response - match the format expected by dashboard
     const formattedConversations = conversations.map((conv) => ({
       id: conv.id,
       name: conv.name,
       isGroup: conv.isGroup,
-      participants: conv.users
-        .filter((u) => u.userId !== session.user.id)
-        .map((u) => u.user),
-      lastMessage: conv.messages[0] || null,
       updatedAt: conv.updatedAt,
+      users: conv.users.map((u) => ({
+        user: {
+          id: u.user.id,
+          name: u.user.name,
+          image: u.user.image,
+          status: u.user.status,
+        },
+      })),
+      messages: conv.messages.map((m) => ({
+        content: m.content,
+        type: m.type,
+        createdAt: m.createdAt,
+        sender: { name: null }, // Sender info not included in the query
+      })),
     }));
 
     return NextResponse.json(formattedConversations);
