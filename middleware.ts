@@ -16,7 +16,7 @@ const securityHeaders = {
 };
 
 // Paths that require authentication
-const protectedPaths = ['/dashboard', '/api/users', '/api/conversations', '/api/ai'];
+const protectedPaths = ['/dashboard', '/api/users', '/api/conversations', '/api/groups'];
 
 // Paths that are public
 const publicPaths = ['/', '/auth/signin', '/auth/register', '/auth/error', '/api/auth'];

@@ -26,6 +26,9 @@ import {
   Users,
   Settings,
   PlusSquare,
+  Image as ImageIcon,
+  Loader2,
+  Maximize2,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -85,6 +88,7 @@ interface Message {
 interface ChatMessage {
   id: string;
   content: string;
+  type?: string;
   senderId: string;
   createdAt: string;
   sender: {
@@ -116,8 +120,12 @@ export default function DashboardPage() {
   const [groups, setGroups] = useState<any[]>([]);
   const [newGroupName, setNewGroupName] = useState("");
   const [newGroupDescription, setNewGroupDescription] = useState("");
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [pendingImage, setPendingImage] = useState<{ url: string; filename: string } | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -275,7 +283,7 @@ export default function DashboardPage() {
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!message.trim()) return;
+    if (!message.trim() && !pendingImage) return;
 
     if (selectedUser && connectionStatus?.canChat && connectionStatus.conversationId) {
       await handleChatMessage();
@@ -283,16 +291,19 @@ export default function DashboardPage() {
   };
 
   const handleChatMessage = async () => {
-    if (!connectionStatus?.conversationId || !message.trim()) return;
+    if (!connectionStatus?.conversationId || (!message.trim() && !pendingImage)) return;
 
-    const msgContent = message.trim();
+    const msgContent = pendingImage ? pendingImage.url : message.trim();
+    const msgType = pendingImage ? "image" : "text";
     setMessage("");
+    setPendingImage(null);
+    setImagePreview(null);
 
     try {
       const response = await fetch(`/api/conversations/${connectionStatus.conversationId}/messages`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content: msgContent }),
+        body: JSON.stringify({ content: msgContent, type: msgType }),
       });
 
       if (response.ok) {
@@ -302,6 +313,58 @@ export default function DashboardPage() {
     } catch (error) {
       console.error("Error sending message:", error);
     }
+  };
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      alert("Please select an image file");
+      return;
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      alert("File size must be less than 10MB");
+      return;
+    }
+
+    // Show preview
+    const reader = new FileReader();
+    reader.onload = (ev) => setImagePreview(ev.target?.result as string);
+    reader.readAsDataURL(file);
+
+    setUploadingImage(true);
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("type", "message");
+
+      const res = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "Upload failed");
+      }
+
+      const result = await res.json();
+      setPendingImage({ url: result.url, filename: result.filename });
+    } catch (err) {
+      console.error("Upload error:", err);
+      alert(err instanceof Error ? err.message : "Failed to upload image");
+      setImagePreview(null);
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
+  const cancelPendingImage = () => {
+    setPendingImage(null);
+    setImagePreview(null);
   };
 
   // AI integration removed per request
@@ -707,7 +770,24 @@ export default function DashboardPage() {
                             ? "bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-tr-sm"
                             : "bg-white dark:bg-gray-800 rounded-tl-sm shadow-sm border"
                         }`}>
-                          <p className="text-sm">{msg.content}</p>
+                          {msg.type === "image" ? (
+                            <div className="relative group">
+                              <img
+                                src={msg.content}
+                                alt="Shared image"
+                                className="max-w-[300px] max-h-[300px] rounded-lg object-cover cursor-pointer"
+                                onClick={() => window.open(msg.content, "_blank")}
+                              />
+                              <button
+                                onClick={() => window.open(msg.content, "_blank")}
+                                className="absolute top-2 right-2 p-1 bg-black/50 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+                              >
+                                <Maximize2 className="w-4 h-4 text-white" />
+                              </button>
+                            </div>
+                          ) : (
+                            <p className="text-sm">{msg.content}</p>
+                          )}
                           <p className={`text-xs mt-1 ${msg.senderId === session.user?.id ? "text-blue-200" : "text-gray-500"}`}>
                             {new Date(msg.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                           </p>
@@ -785,20 +865,56 @@ export default function DashboardPage() {
         </div>
 
         {/* Message Input */}
-        {(selectedUser && connectionStatus?.canChat) && (
+        {selectedUser && connectionStatus?.canChat && (
           <div className="bg-white dark:bg-gray-800 border-t p-4">
+            {/* Image Preview */}
+            {imagePreview && (
+              <div className="max-w-4xl mx-auto mb-3 relative inline-block">
+                <img
+                  src={imagePreview}
+                  alt="Preview"
+                  className="max-h-32 rounded-lg border"
+                />
+                <button
+                  onClick={cancelPendingImage}
+                  className="absolute -top-2 -right-2 p-1 bg-red-500 text-white rounded-full hover:bg-red-600"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+                {uploadingImage && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/40 rounded-lg">
+                    <Loader2 className="w-6 h-6 text-white animate-spin" />
+                  </div>
+                )}
+              </div>
+            )}
             <form onSubmit={handleSendMessage} className="flex gap-2 max-w-4xl mx-auto">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleImageUpload}
+                className="hidden"
+              />
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploadingImage}
+                className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg disabled:opacity-50"
+              >
+                <ImageIcon className="w-5 h-5 text-gray-500" />
+              </button>
               <Input
                 ref={inputRef}
                 type="text"
-                placeholder={`Message ${selectedUser?.name}...`}
+                placeholder={pendingImage ? "Add a caption or send..." : `Message ${selectedUser?.name}...`}
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
                 className="flex-1"
-                
+                disabled={uploadingImage}
               />
-              <Button type="submit" size="icon" disabled={!message.trim()}>
-                <Send className="w-5 h-5" />
+              <Button type="submit" size="icon" disabled={(!message.trim() && !pendingImage) || uploadingImage}>
+                {uploadingImage ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
               </Button>
             </form>
           </div>
