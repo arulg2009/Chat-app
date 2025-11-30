@@ -11,24 +11,27 @@ import {
   ArrowLeft,
   Send,
   Users,
-  Settings,
   UserPlus,
   LogOut,
   Crown,
   Shield,
   MoreVertical,
   Image as ImageIcon,
-  Paperclip,
   Smile,
-  Info,
   UserMinus,
   Trash2,
   Edit,
   Check,
   X,
   Loader2,
+  Mic,
+  Search,
+  Reply,
+  Forward,
+  Copy,
+  ZoomIn,
   Download,
-  Maximize2,
+  CheckCheck,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -37,6 +40,18 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { EmojiPicker } from "@/components/ui/emoji-picker";
+import {
+  MessageReactions,
+  ReactionPicker,
+  VoiceMessagePlayer,
+  VoiceRecorder,
+  TypingIndicator,
+  ImageViewer,
+  MessageSearch,
+  ForwardMessageDialog,
+} from "@/components/chat";
+import { cn } from "@/lib/utils";
 
 interface GroupMember {
   userId: string;
@@ -50,17 +65,36 @@ interface GroupMember {
   };
 }
 
+interface MessageReaction {
+  emoji: string;
+  count: number;
+  users: Array<{ id: string; name: string | null }>;
+  hasReacted: boolean;
+}
+
 interface GroupMessage {
   id: string;
   content: string;
   type: string;
   senderId: string;
   createdAt: string;
+  isEdited?: boolean;
+  isDeleted?: boolean;
+  isForwarded?: boolean;
+  metadata?: any;
   sender: {
     id: string;
     name: string | null;
     image: string | null;
   };
+  replyTo?: {
+    id: string;
+    content: string;
+    type?: string;
+    sender: { name: string | null };
+  } | null;
+  reactions?: MessageReaction[];
+  readBy?: Array<{ userId: string; readAt: string }>;
 }
 
 interface GroupData {
@@ -98,15 +132,29 @@ export default function GroupChatPage() {
   const [message, setMessage] = useState("");
   const [sending, setSending] = useState(false);
   const [showMembers, setShowMembers] = useState(false);
-  const [showSettings, setShowSettings] = useState(false);
   const [editingName, setEditingName] = useState(false);
   const [newGroupName, setNewGroupName] = useState("");
   const [uploadingFile, setUploadingFile] = useState(false);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [pendingImage, setPendingImage] = useState<{ url: string; filename: string } | null>(null);
+  
+  // New states for features
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [isRecordingVoice, setIsRecordingVoice] = useState(false);
+  const [replyingTo, setReplyingTo] = useState<GroupMessage | null>(null);
+  const [showSearch, setShowSearch] = useState(false);
+  const [showImageViewer, setShowImageViewer] = useState(false);
+  const [imageViewerIndex, setImageViewerIndex] = useState(0);
+  const [forwardingMessage, setForwardingMessage] = useState<GroupMessage | null>(null);
+  const [activeReactionPicker, setActiveReactionPicker] = useState<string | null>(null);
+  const [typingUsers, setTypingUsers] = useState<Array<{ name: string | null }>>([]);
+  const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null);
+  
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const lastTypingRef = useRef<number>(0);
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -117,6 +165,9 @@ export default function GroupChatPage() {
   useEffect(() => {
     if (status === "authenticated" && groupId) {
       fetchGroup();
+      // Start polling for typing indicators
+      const typingInterval = setInterval(fetchTypingUsers, 3000);
+      return () => clearInterval(typingInterval);
     }
   }, [status, groupId]);
 
@@ -128,6 +179,17 @@ export default function GroupChatPage() {
     scrollToBottom();
   }, [group?.messages, scrollToBottom]);
 
+  // Scroll to highlighted message
+  useEffect(() => {
+    if (highlightedMessageId) {
+      const element = document.getElementById(`message-${highlightedMessageId}`);
+      if (element) {
+        element.scrollIntoView({ behavior: "smooth", block: "center" });
+        setTimeout(() => setHighlightedMessageId(null), 2000);
+      }
+    }
+  }, [highlightedMessageId]);
+
   const fetchGroup = async () => {
     try {
       const res = await fetch(`/api/groups/${groupId}`);
@@ -135,6 +197,10 @@ export default function GroupChatPage() {
         const data = await res.json();
         setGroup(data);
         setNewGroupName(data.name);
+        // Mark messages as read
+        if (data.messages.length > 0) {
+          markMessagesAsRead(data.messages.map((m: GroupMessage) => m.id));
+        }
       } else if (res.status === 404) {
         router.push("/dashboard");
       }
@@ -145,6 +211,61 @@ export default function GroupChatPage() {
     }
   };
 
+  const fetchTypingUsers = async () => {
+    try {
+      const res = await fetch(`/api/groups/${groupId}/typing`);
+      if (res.ok) {
+        const data = await res.json();
+        setTypingUsers(data);
+      }
+    } catch (err) {
+      // Ignore errors
+    }
+  };
+
+  const updateTypingStatus = async (isTyping: boolean) => {
+    try {
+      await fetch(`/api/groups/${groupId}/typing`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isTyping }),
+      });
+    } catch (err) {
+      // Ignore errors
+    }
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setMessage(e.target.value);
+    
+    // Throttle typing indicator updates
+    const now = Date.now();
+    if (now - lastTypingRef.current > 2000) {
+      updateTypingStatus(true);
+      lastTypingRef.current = now;
+    }
+
+    // Clear typing after 3 seconds of no input
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+    typingTimeoutRef.current = setTimeout(() => {
+      updateTypingStatus(false);
+    }, 3000);
+  };
+
+  const markMessagesAsRead = async (messageIds: string[]) => {
+    try {
+      await fetch(`/api/groups/${groupId}/messages/read`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messageIds }),
+      });
+    } catch (err) {
+      // Ignore errors
+    }
+  };
+
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if ((!message.trim() && !pendingImage) || !group || sending) return;
@@ -152,15 +273,21 @@ export default function GroupChatPage() {
     setSending(true);
     const content = pendingImage ? pendingImage.url : message.trim();
     const type = pendingImage ? "image" : "text";
+    const messageToSend = message;
     setMessage("");
     setPendingImage(null);
     setImagePreview(null);
+    updateTypingStatus(false);
 
     try {
       const res = await fetch(`/api/groups/${groupId}/messages`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content, type }),
+        body: JSON.stringify({
+          content,
+          type,
+          replyToId: replyingTo?.id || null,
+        }),
       });
 
       if (res.ok) {
@@ -168,12 +295,143 @@ export default function GroupChatPage() {
         setGroup((prev) =>
           prev ? { ...prev, messages: [...prev.messages, newMsg] } : prev
         );
+        setReplyingTo(null);
       }
     } catch (err) {
       console.error("Error sending message:", err);
+      setMessage(messageToSend);
     } finally {
       setSending(false);
       inputRef.current?.focus();
+    }
+  };
+
+  const handleSendVoiceMessage = async (audioBlob: Blob, duration: number) => {
+    setIsRecordingVoice(false);
+    
+    try {
+      // Upload the voice message
+      const formData = new FormData();
+      formData.append("file", audioBlob, "voice-message.webm");
+      formData.append("type", "voice");
+
+      const uploadRes = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!uploadRes.ok) {
+        throw new Error("Upload failed");
+      }
+
+      const uploadResult = await uploadRes.json();
+
+      // Send the message
+      const res = await fetch(`/api/groups/${groupId}/messages`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          content: uploadResult.url,
+          type: "voice",
+          metadata: { duration },
+          replyToId: replyingTo?.id || null,
+        }),
+      });
+
+      if (res.ok) {
+        const newMsg = await res.json();
+        setGroup((prev) =>
+          prev ? { ...prev, messages: [...prev.messages, newMsg] } : prev
+        );
+        setReplyingTo(null);
+      }
+    } catch (err) {
+      console.error("Error sending voice message:", err);
+      alert("Failed to send voice message");
+    }
+  };
+
+  const handleReaction = async (messageId: string, emoji: string) => {
+    try {
+      const res = await fetch(`/api/groups/${groupId}/messages/${messageId}/reactions`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ emoji }),
+      });
+
+      if (res.ok) {
+        // Refresh group to get updated reactions
+        await fetchGroup();
+      }
+    } catch (err) {
+      console.error("Error adding reaction:", err);
+    }
+    setActiveReactionPicker(null);
+  };
+
+  const handleDeleteMessage = async (messageId: string) => {
+    if (!confirm("Delete this message?")) return;
+
+    try {
+      const res = await fetch(`/api/groups/${groupId}/messages/${messageId}`, {
+        method: "DELETE",
+      });
+
+      if (res.ok) {
+        setGroup((prev) =>
+          prev
+            ? {
+                ...prev,
+                messages: prev.messages.map((m) =>
+                  m.id === messageId ? { ...m, isDeleted: true } : m
+                ),
+              }
+            : prev
+        );
+      }
+    } catch (err) {
+      console.error("Error deleting message:", err);
+    }
+  };
+
+  const handleCopyMessage = async (content: string) => {
+    try {
+      await navigator.clipboard.writeText(content);
+    } catch (err) {
+      console.error("Error copying message:", err);
+    }
+  };
+
+  const handleForwardMessage = async (targetId: string, targetType: "conversation" | "group") => {
+    if (!forwardingMessage) return;
+
+    try {
+      const endpoint = targetType === "group"
+        ? `/api/groups/${targetId}/messages`
+        : `/api/conversations/${targetId}/messages`;
+
+      const res = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          content: forwardingMessage.content,
+          type: forwardingMessage.type,
+          isForwarded: true,
+          metadata: {
+            forwardedFrom: {
+              name: forwardingMessage.sender.name,
+              groupName: group?.name,
+            },
+          },
+        }),
+      });
+
+      if (!res.ok) {
+        throw new Error("Failed to forward message");
+      }
+    } catch (err) {
+      console.error("Error forwarding message:", err);
+      throw err;
     }
   };
 
@@ -273,7 +531,6 @@ export default function GroupChatPage() {
       return;
     }
 
-    // Show preview
     const reader = new FileReader();
     reader.onload = (e) => setImagePreview(e.target?.result as string);
     reader.readAsDataURL(file);
@@ -311,6 +568,26 @@ export default function GroupChatPage() {
     setImagePreview(null);
   };
 
+  const handleEmojiSelect = (emoji: string) => {
+    setMessage((prev) => prev + emoji);
+    setShowEmojiPicker(false);
+    inputRef.current?.focus();
+  };
+
+  const handleSearchResultClick = (messageId: string) => {
+    setShowSearch(false);
+    setHighlightedMessageId(messageId);
+  };
+
+  const openImageViewer = (imageUrl: string) => {
+    const images = group?.messages
+      .filter((m) => m.type === "image" && !m.isDeleted)
+      .map((m) => ({ url: m.content, id: m.id, sender: m.sender })) || [];
+    const index = images.findIndex((img) => img.url === imageUrl);
+    setImageViewerIndex(index >= 0 ? index : 0);
+    setShowImageViewer(true);
+  };
+
   const getInitials = (name: string | null) => {
     if (!name) return "U";
     return name
@@ -340,8 +617,20 @@ export default function GroupChatPage() {
     }
   };
 
+  const formatTime = (date: string) => {
+    return new Date(date).toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
+
   const isAdmin = group?.userRole === "creator" || group?.userRole === "admin";
   const isCreator = group?.userRole === "creator";
+
+  // Get images for the viewer
+  const imageMessages = group?.messages
+    .filter((m) => m.type === "image" && !m.isDeleted)
+    .map((m) => ({ url: m.content, id: m.id, sender: m.sender })) || [];
 
   if (status === "loading" || loading) {
     return (
@@ -356,7 +645,17 @@ export default function GroupChatPage() {
   return (
     <div className="h-screen flex bg-gray-100 dark:bg-gray-900">
       {/* Main Chat Area */}
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col relative">
+        {/* Search overlay */}
+        {showSearch && (
+          <MessageSearch
+            conversationType="group"
+            conversationId={groupId}
+            onResultClick={handleSearchResultClick}
+            onClose={() => setShowSearch(false)}
+          />
+        )}
+
         {/* Header */}
         <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 p-4">
           <div className="flex items-center gap-3">
@@ -396,14 +695,27 @@ export default function GroupChatPage() {
               )}
               <p className="text-sm text-gray-500">
                 {group._count.members} member{group._count.members !== 1 ? "s" : ""}
+                {typingUsers.length > 0 && (
+                  <span className="text-blue-500 ml-2">
+                    • {typingUsers.map((u) => u.name).join(", ")} typing...
+                  </span>
+                )}
               </p>
             </div>
 
             <button
+              onClick={() => setShowSearch(true)}
+              className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
+            >
+              <Search className="w-5 h-5" />
+            </button>
+
+            <button
               onClick={() => setShowMembers(!showMembers)}
-              className={`p-2 rounded-lg ${
+              className={cn(
+                "p-2 rounded-lg",
                 showMembers ? "bg-blue-100 text-blue-600" : "hover:bg-gray-100 dark:hover:bg-gray-700"
-              }`}
+              )}
             >
               <Users className="w-5 h-5" />
             </button>
@@ -424,10 +736,7 @@ export default function GroupChatPage() {
                   </DropdownMenuItem>
                 )}
                 <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  onClick={handleLeaveGroup}
-                  className="text-red-600"
-                >
+                <DropdownMenuItem onClick={handleLeaveGroup} className="text-red-600">
                   <LogOut className="w-4 h-4 mr-2" /> Leave Group
                 </DropdownMenuItem>
               </DropdownMenuContent>
@@ -444,12 +753,8 @@ export default function GroupChatPage() {
                   {group.name.slice(0, 2).toUpperCase()}
                 </div>
                 <h3 className="text-xl font-semibold mb-2">{group.name}</h3>
-                <p className="text-gray-500 mb-4">
-                  {group.description || "No description"}
-                </p>
-                <p className="text-sm text-gray-400 mb-4">
-                  {group._count.members} members
-                </p>
+                <p className="text-gray-500 mb-4">{group.description || "No description"}</p>
+                <p className="text-sm text-gray-400 mb-4">{group._count.members} members</p>
                 <Button onClick={handleJoinGroup} className="bg-gradient-to-r from-blue-600 to-purple-600">
                   <UserPlus className="w-4 h-4 mr-2" /> Join Group
                 </Button>
@@ -460,72 +765,226 @@ export default function GroupChatPage() {
               {group.messages.length === 0 ? (
                 <div className="text-center py-12">
                   <Users className="w-16 h-16 mx-auto mb-4 text-gray-300" />
-                  <p className="text-gray-500">
-                    No messages yet. Start the conversation!
-                  </p>
+                  <p className="text-gray-500">No messages yet. Start the conversation!</p>
                 </div>
               ) : (
                 group.messages.map((msg) => {
                   const isOwn = msg.senderId === session.user?.id;
+                  const isHighlighted = highlightedMessageId === msg.id;
+
+                  // Deleted message
+                  if (msg.isDeleted) {
+                    return (
+                      <div
+                        key={msg.id}
+                        id={`message-${msg.id}`}
+                        className={cn("flex", isOwn ? "justify-end" : "justify-start")}
+                      >
+                        <div className="max-w-[70%] rounded-2xl px-4 py-2 italic text-sm bg-gray-200 dark:bg-gray-700 text-gray-500">
+                          <span className="flex items-center gap-1">
+                            <Trash2 className="w-3.5 h-3.5" />
+                            This message was deleted
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  }
+
                   return (
                     <div
                       key={msg.id}
-                      className={`flex ${isOwn ? "justify-end" : "justify-start"}`}
+                      id={`message-${msg.id}`}
+                      className={cn(
+                        "flex group transition-colors duration-500",
+                        isOwn ? "justify-end" : "justify-start",
+                        isHighlighted && "bg-yellow-100 dark:bg-yellow-900/30 -mx-4 px-4 py-2 rounded-lg"
+                      )}
                     >
-                      <div
-                        className={`flex gap-2 max-w-[70%] ${
-                          isOwn ? "flex-row-reverse" : ""
-                        }`}
-                      >
+                      <div className={cn("flex gap-2 max-w-[70%]", isOwn ? "flex-row-reverse" : "")}>
                         {!isOwn && (
-                          <Avatar className="w-8 h-8">
+                          <Avatar className="w-8 h-8 flex-shrink-0">
                             <AvatarImage src={msg.sender.image || undefined} />
                             <AvatarFallback className="bg-gradient-to-br from-purple-500 to-pink-500 text-white text-xs">
                               {getInitials(msg.sender.name)}
                             </AvatarFallback>
                           </Avatar>
                         )}
-                        <div>
+
+                        <div className="flex-1">
                           {!isOwn && (
-                            <p className="text-xs text-gray-500 mb-1 ml-1">
-                              {msg.sender.name}
+                            <p className="text-xs text-gray-500 mb-1 ml-1">{msg.sender.name}</p>
+                          )}
+
+                          {/* Forwarded indicator */}
+                          {msg.isForwarded && (
+                            <p className="text-xs text-gray-500 mb-1 ml-1 flex items-center gap-1">
+                              <Forward className="w-3 h-3" /> Forwarded
                             </p>
                           )}
-                          <div
-                            className={`rounded-2xl px-4 py-2 ${
-                              isOwn
-                                ? "bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-tr-sm"
-                                : "bg-white dark:bg-gray-800 rounded-tl-sm shadow-sm border"
-                            }`}
-                          >
-                            {msg.type === "image" ? (
-                              <div className="relative group">
-                                <img
-                                  src={msg.content}
-                                  alt="Shared image"
-                                  className="max-w-[300px] max-h-[300px] rounded-lg object-cover cursor-pointer"
-                                  onClick={() => window.open(msg.content, "_blank")}
-                                />
-                                <button
-                                  onClick={() => window.open(msg.content, "_blank")}
-                                  className="absolute top-2 right-2 p-1 bg-black/50 rounded opacity-0 group-hover:opacity-100 transition-opacity"
-                                >
-                                  <Maximize2 className="w-4 h-4 text-white" />
-                                </button>
-                              </div>
-                            ) : (
-                              <p className="text-sm">{msg.content}</p>
-                            )}
-                            <p
-                              className={`text-xs mt-1 ${
-                                isOwn ? "text-blue-200" : "text-gray-500"
-                              }`}
+
+                          {/* Reply preview */}
+                          {msg.replyTo && (
+                            <div
+                              className={cn(
+                                "mb-1 border-l-2 pl-2 py-1 text-xs rounded-r-lg",
+                                isOwn
+                                  ? "border-blue-400 bg-blue-500/10"
+                                  : "border-gray-400 bg-gray-500/10"
+                              )}
                             >
-                              {new Date(msg.createdAt).toLocaleTimeString([], {
-                                hour: "2-digit",
-                                minute: "2-digit",
-                              })}
-                            </p>
+                              <p className="font-medium text-gray-600 dark:text-gray-300">
+                                {msg.replyTo.sender.name}
+                              </p>
+                              <p className="text-gray-500 truncate">
+                                {msg.replyTo.type === "image"
+                                  ? "📷 Photo"
+                                  : msg.replyTo.type === "voice"
+                                  ? "🎤 Voice message"
+                                  : msg.replyTo.content.slice(0, 50)}
+                              </p>
+                            </div>
+                          )}
+
+                          {/* Message content */}
+                          <div className="relative">
+                            <div
+                              className={cn(
+                                "rounded-2xl overflow-hidden",
+                                msg.type === "image" || msg.type === "voice" ? "" : "px-4 py-2",
+                                isOwn
+                                  ? "bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-tr-sm"
+                                  : "bg-white dark:bg-gray-800 rounded-tl-sm shadow-sm border"
+                              )}
+                            >
+                              {/* Text message */}
+                              {msg.type === "text" && (
+                                <p className="text-sm whitespace-pre-wrap break-words">{msg.content}</p>
+                              )}
+
+                              {/* Image message */}
+                              {msg.type === "image" && (
+                                <div className="relative group/image">
+                                  <img
+                                    src={msg.content}
+                                    alt="Shared image"
+                                    className="max-w-[300px] max-h-[300px] rounded-lg object-cover cursor-pointer"
+                                    onClick={() => openImageViewer(msg.content)}
+                                  />
+                                  <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover/image:opacity-100 transition-opacity">
+                                    <button
+                                      onClick={() => openImageViewer(msg.content)}
+                                      className="p-1.5 bg-black/50 rounded-full hover:bg-black/70 transition"
+                                    >
+                                      <ZoomIn className="w-4 h-4 text-white" />
+                                    </button>
+                                    <a
+                                      href={msg.content}
+                                      download
+                                      className="p-1.5 bg-black/50 rounded-full hover:bg-black/70 transition"
+                                      onClick={(e) => e.stopPropagation()}
+                                    >
+                                      <Download className="w-4 h-4 text-white" />
+                                    </a>
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Voice message */}
+                              {(msg.type === "voice" || msg.type === "audio") && (
+                                <div className="p-3">
+                                  <VoiceMessagePlayer
+                                    src={msg.content}
+                                    duration={msg.metadata?.duration}
+                                    isOwn={isOwn}
+                                  />
+                                </div>
+                              )}
+
+                              {/* Time and read status */}
+                              <div
+                                className={cn(
+                                  "flex items-center gap-1 mt-1",
+                                  msg.type === "image"
+                                    ? "absolute bottom-2 right-2 bg-black/50 px-1.5 py-0.5 rounded text-white"
+                                    : "",
+                                  isOwn && msg.type !== "image" ? "justify-end text-blue-200" : "text-gray-500"
+                                )}
+                              >
+                                {msg.isEdited && <span className="text-xs opacity-70">edited</span>}
+                                <span className="text-xs">{formatTime(msg.createdAt)}</span>
+                                {isOwn && (
+                                  <CheckCheck
+                                    className={cn(
+                                      "w-3.5 h-3.5",
+                                      msg.readBy && msg.readBy.length > 0 ? "text-blue-400" : ""
+                                    )}
+                                  />
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Reactions */}
+                            {msg.reactions && msg.reactions.length > 0 && (
+                              <MessageReactions
+                                reactions={msg.reactions}
+                                onReact={(emoji) => handleReaction(msg.id, emoji)}
+                                isOwn={isOwn}
+                              />
+                            )}
+
+                            {/* Action buttons on hover */}
+                            <div
+                              className={cn(
+                                "absolute top-0 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity z-10",
+                                isOwn ? "left-0 -translate-x-full pr-1" : "right-0 translate-x-full pl-1"
+                              )}
+                            >
+                              <button
+                                onClick={() => setActiveReactionPicker(activeReactionPicker === msg.id ? null : msg.id)}
+                                className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition bg-white dark:bg-gray-800 shadow-sm"
+                              >
+                                <Smile className="w-4 h-4 text-gray-500" />
+                              </button>
+
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <button className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition bg-white dark:bg-gray-800 shadow-sm">
+                                    <MoreVertical className="w-4 h-4 text-gray-500" />
+                                  </button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align={isOwn ? "start" : "end"}>
+                                  <DropdownMenuItem onClick={() => setReplyingTo(msg)}>
+                                    <Reply className="w-4 h-4 mr-2" /> Reply
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => setForwardingMessage(msg)}>
+                                    <Forward className="w-4 h-4 mr-2" /> Forward
+                                  </DropdownMenuItem>
+                                  {msg.type === "text" && (
+                                    <DropdownMenuItem onClick={() => handleCopyMessage(msg.content)}>
+                                      <Copy className="w-4 h-4 mr-2" /> Copy
+                                    </DropdownMenuItem>
+                                  )}
+                                  <DropdownMenuSeparator />
+                                  {isOwn && (
+                                    <DropdownMenuItem
+                                      onClick={() => handleDeleteMessage(msg.id)}
+                                      className="text-red-600"
+                                    >
+                                      <Trash2 className="w-4 h-4 mr-2" /> Delete
+                                    </DropdownMenuItem>
+                                  )}
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </div>
+
+                            {/* Reaction picker */}
+                            {activeReactionPicker === msg.id && (
+                              <ReactionPicker
+                                onSelect={(emoji) => handleReaction(msg.id, emoji)}
+                                onClose={() => setActiveReactionPicker(null)}
+                                position={isOwn ? "left" : "right"}
+                              />
+                            )}
                           </div>
                         </div>
                       </div>
@@ -533,6 +992,14 @@ export default function GroupChatPage() {
                   );
                 })
               )}
+
+              {/* Typing indicator */}
+              {typingUsers.length > 0 && (
+                <div className="flex items-center gap-2">
+                  <TypingIndicator users={typingUsers} />
+                </div>
+              )}
+
               <div ref={messagesEndRef} />
             </div>
           )}
@@ -541,65 +1008,121 @@ export default function GroupChatPage() {
         {/* Message Input */}
         {group.isMember && (
           <div className="bg-white dark:bg-gray-800 border-t p-4">
-            {/* Image Preview */}
-            {imagePreview && (
-              <div className="max-w-4xl mx-auto mb-3 relative inline-block">
-                <img
-                  src={imagePreview}
-                  alt="Preview"
-                  className="max-h-32 rounded-lg border"
-                />
-                <button
-                  onClick={cancelPendingImage}
-                  className="absolute -top-2 -right-2 p-1 bg-red-500 text-white rounded-full hover:bg-red-600"
-                >
+            {/* Reply preview */}
+            {replyingTo && (
+              <div className="max-w-4xl mx-auto mb-3 flex items-center gap-2 p-2 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                <Reply className="w-4 h-4 text-gray-500" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-medium text-gray-600 dark:text-gray-300">
+                    Replying to {replyingTo.sender.name}
+                  </p>
+                  <p className="text-xs text-gray-500 truncate">
+                    {replyingTo.type === "image"
+                      ? "📷 Photo"
+                      : replyingTo.type === "voice"
+                      ? "🎤 Voice message"
+                      : replyingTo.content.slice(0, 50)}
+                  </p>
+                </div>
+                <button onClick={() => setReplyingTo(null)} className="p-1 hover:bg-gray-200 rounded">
                   <X className="w-4 h-4" />
                 </button>
-                {uploadingFile && (
-                  <div className="absolute inset-0 flex items-center justify-center bg-black/40 rounded-lg">
-                    <Loader2 className="w-6 h-6 text-white animate-spin" />
-                  </div>
-                )}
               </div>
             )}
-            <form
-              onSubmit={handleSendMessage}
-              className="flex gap-2 max-w-4xl mx-auto"
-            >
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                onChange={handleFileSelect}
-                className="hidden"
-              />
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                disabled={uploadingFile}
-                className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg disabled:opacity-50"
-              >
-                <ImageIcon className="w-5 h-5 text-gray-500" />
-              </button>
-              <Input
-                ref={inputRef}
-                type="text"
-                placeholder={pendingImage ? "Add a caption or send..." : "Type a message..."}
-                value={message}
-                onChange={(e) => setMessage(e.target.value)}
-                className="flex-1"
-                disabled={uploadingFile}
-              />
-              <button
-                type="button"
-                className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
-              >
-                <Smile className="w-5 h-5 text-gray-500" />
-              </button>
-              <Button type="submit" size="icon" disabled={(!message.trim() && !pendingImage) || sending || uploadingFile}>
-                {sending ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
-              </Button>
-            </form>
+
+            {/* Voice recorder */}
+            {isRecordingVoice ? (
+              <div className="max-w-4xl mx-auto">
+                <VoiceRecorder
+                  onRecordingComplete={handleSendVoiceMessage}
+                  onCancel={() => setIsRecordingVoice(false)}
+                />
+              </div>
+            ) : (
+              <>
+                {/* Image Preview */}
+                {imagePreview && (
+                  <div className="max-w-4xl mx-auto mb-3 relative inline-block">
+                    <img src={imagePreview} alt="Preview" className="max-h-32 rounded-lg border" />
+                    <button
+                      onClick={cancelPendingImage}
+                      className="absolute -top-2 -right-2 p-1 bg-red-500 text-white rounded-full hover:bg-red-600"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                    {uploadingFile && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/40 rounded-lg">
+                        <Loader2 className="w-6 h-6 text-white animate-spin" />
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                <form onSubmit={handleSendMessage} className="flex gap-2 max-w-4xl mx-auto relative">
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleFileSelect}
+                    className="hidden"
+                  />
+
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={uploadingFile}
+                    className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg disabled:opacity-50"
+                  >
+                    <ImageIcon className="w-5 h-5 text-gray-500" />
+                  </button>
+
+                  <Input
+                    ref={inputRef}
+                    type="text"
+                    placeholder={pendingImage ? "Add a caption or send..." : "Type a message..."}
+                    value={message}
+                    onChange={handleInputChange}
+                    className="flex-1"
+                    disabled={uploadingFile}
+                  />
+
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                      className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
+                    >
+                      <Smile className="w-5 h-5 text-gray-500" />
+                    </button>
+                    {showEmojiPicker && (
+                      <EmojiPicker
+                        onSelect={handleEmojiSelect}
+                        onClose={() => setShowEmojiPicker(false)}
+                      />
+                    )}
+                  </div>
+
+                  {/* Show mic button if no text/image, otherwise send button */}
+                  {!message.trim() && !pendingImage ? (
+                    <button
+                      type="button"
+                      onClick={() => setIsRecordingVoice(true)}
+                      className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
+                    >
+                      <Mic className="w-5 h-5 text-gray-500" />
+                    </button>
+                  ) : (
+                    <Button
+                      type="submit"
+                      size="icon"
+                      disabled={(!message.trim() && !pendingImage) || sending || uploadingFile}
+                    >
+                      {sending ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
+                    </Button>
+                  )}
+                </form>
+              </>
+            )}
           </div>
         )}
       </div>
@@ -631,11 +1154,10 @@ export default function GroupChatPage() {
                     </AvatarFallback>
                   </Avatar>
                   <div
-                    className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white ${
-                      member.user.status === "online"
-                        ? "bg-green-500"
-                        : "bg-gray-400"
-                    }`}
+                    className={cn(
+                      "absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white",
+                      member.user.status === "online" ? "bg-green-500" : "bg-gray-400"
+                    )}
                   />
                 </div>
                 <div className="flex-1 min-w-0">
@@ -657,23 +1179,16 @@ export default function GroupChatPage() {
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
                       {isCreator && member.role !== "admin" && (
-                        <DropdownMenuItem
-                          onClick={() => handlePromoteMember(member.userId, "admin")}
-                        >
+                        <DropdownMenuItem onClick={() => handlePromoteMember(member.userId, "admin")}>
                           <Shield className="w-4 h-4 mr-2" /> Make Admin
                         </DropdownMenuItem>
                       )}
                       {isCreator && member.role === "admin" && (
-                        <DropdownMenuItem
-                          onClick={() => handlePromoteMember(member.userId, "member")}
-                        >
+                        <DropdownMenuItem onClick={() => handlePromoteMember(member.userId, "member")}>
                           <UserMinus className="w-4 h-4 mr-2" /> Remove Admin
                         </DropdownMenuItem>
                       )}
-                      <DropdownMenuItem
-                        onClick={() => handleRemoveMember(member.userId)}
-                        className="text-red-600"
-                      >
+                      <DropdownMenuItem onClick={() => handleRemoveMember(member.userId)} className="text-red-600">
                         <Trash2 className="w-4 h-4 mr-2" /> Remove
                       </DropdownMenuItem>
                     </DropdownMenuContent>
@@ -691,6 +1206,29 @@ export default function GroupChatPage() {
             </div>
           )}
         </div>
+      )}
+
+      {/* Image Viewer */}
+      {showImageViewer && imageMessages.length > 0 && (
+        <ImageViewer
+          images={imageMessages}
+          initialIndex={imageViewerIndex}
+          onClose={() => setShowImageViewer(false)}
+        />
+      )}
+
+      {/* Forward Dialog */}
+      {forwardingMessage && (
+        <ForwardMessageDialog
+          isOpen={!!forwardingMessage}
+          onClose={() => setForwardingMessage(null)}
+          message={{
+            id: forwardingMessage.id,
+            content: forwardingMessage.content,
+            type: forwardingMessage.type,
+          }}
+          onForward={handleForwardMessage}
+        />
       )}
     </div>
   );

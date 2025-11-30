@@ -75,6 +75,9 @@ model User {
   groupMemberships     GroupMember[]
   groupMessages        GroupMessage[]
   messageReactions     MessageReaction[]
+  groupMessageReactions    GroupMessageReaction[]
+  groupMessageReadReceipts GroupMessageReadReceipt[]
+  groupTypingIndicators    GroupTypingIndicator[]
 }
 
 model VerificationToken {
@@ -234,9 +237,10 @@ model Group {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  creator  User           @relation("GroupCreator", fields: [creatorId], references: [id], onDelete: Cascade)
-  members  GroupMember[]
-  messages GroupMessage[]
+  creator          User                  @relation("GroupCreator", fields: [creatorId], references: [id], onDelete: Cascade)
+  members          GroupMember[]
+  messages         GroupMessage[]
+  typingIndicators GroupTypingIndicator[]
 
   @@index([creatorId])
   @@index([isPrivate])
@@ -263,21 +267,73 @@ model GroupMember {
 
 // Group messages
 model GroupMessage {
-  id        String   @id @default(cuid())
-  content   String   @db.Text
-  type      String   @default("text") // text, image, file, system
-  senderId  String
-  groupId   String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  isEdited  Boolean  @default(false)
-  isDeleted Boolean  @default(false)
-  metadata  Json?
+  id          String   @id @default(cuid())
+  content     String   @db.Text
+  type        String   @default("text") // text, image, file, system, audio, voice
+  senderId    String
+  groupId     String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  isEdited    Boolean  @default(false)
+  isDeleted   Boolean  @default(false)
+  isForwarded Boolean  @default(false)
+  replyToId   String?
+  metadata    Json?    // For file info, voice duration, forwarded from info, etc.
 
-  sender User  @relation(fields: [senderId], references: [id], onDelete: Cascade)
-  group  Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  sender    User                   @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  group     Group                  @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  replyTo   GroupMessage?          @relation("GroupMessageReplies", fields: [replyToId], references: [id])
+  replies   GroupMessage[]         @relation("GroupMessageReplies")
+  reactions GroupMessageReaction[]
+  readBy    GroupMessageReadReceipt[]
 
   @@index([groupId])
   @@index([senderId])
   @@index([createdAt])
+}
+
+// Group message reactions
+model GroupMessageReaction {
+  id        String   @id @default(cuid())
+  emoji     String
+  userId    String
+  messageId String
+  createdAt DateTime @default(now())
+
+  user    User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  message GroupMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, messageId, emoji])
+  @@index([messageId])
+  @@index([userId])
+}
+
+// Group message read receipts
+model GroupMessageReadReceipt {
+  id        String   @id @default(cuid())
+  messageId String
+  userId    String
+  readAt    DateTime @default(now())
+
+  message GroupMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user    User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, userId])
+  @@index([messageId])
+  @@index([userId])
+}
+
+// Group typing indicators
+model GroupTypingIndicator {
+  id        String   @id @default(cuid())
+  userId    String
+  groupId   String
+  isTyping  Boolean  @default(true)
+  updatedAt DateTime @updatedAt
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  group Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, groupId])
+  @@index([groupId])
 }

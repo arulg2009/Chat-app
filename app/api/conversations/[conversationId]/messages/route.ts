@@ -69,11 +69,28 @@ export async function GET(
           select: {
             id: true,
             content: true,
+            type: true,
             sender: {
               select: {
                 name: true,
               },
             },
+          },
+        },
+        reactions: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+          },
+        },
+        readReceipts: {
+          select: {
+            userId: true,
+            readAt: true,
           },
         },
       },
@@ -83,8 +100,33 @@ export async function GET(
     const messagesToReturn = hasMore ? messages.slice(0, -1) : messages;
     const nextCursor = hasMore ? messagesToReturn[messagesToReturn.length - 1]?.id : null;
 
+    // Transform reactions to grouped format
+    const transformedMessages = messagesToReturn.map((msg) => {
+      const groupedReactions = msg.reactions.reduce((acc: any, reaction) => {
+        if (!acc[reaction.emoji]) {
+          acc[reaction.emoji] = {
+            emoji: reaction.emoji,
+            count: 0,
+            users: [],
+            hasReacted: false,
+          };
+        }
+        acc[reaction.emoji].count++;
+        acc[reaction.emoji].users.push(reaction.user);
+        if (reaction.userId === session.user.id) {
+          acc[reaction.emoji].hasReacted = true;
+        }
+        return acc;
+      }, {});
+
+      return {
+        ...msg,
+        reactions: Object.values(groupedReactions),
+      };
+    });
+
     return NextResponse.json({
-      messages: messagesToReturn.reverse(), // Return in chronological order
+      messages: transformedMessages.reverse(), // Return in chronological order
       nextCursor,
       hasMore,
     });
@@ -162,6 +204,7 @@ export async function POST(
         conversationId,
         replyToId: replyToId || null,
         metadata: metadata || null,
+        isForwarded: body.isForwarded || false,
       },
       include: {
         sender: {
@@ -175,6 +218,7 @@ export async function POST(
           select: {
             id: true,
             content: true,
+            type: true,
             sender: {
               select: {
                 name: true,
@@ -182,6 +226,24 @@ export async function POST(
             },
           },
         },
+        reactions: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    // Clear typing indicator
+    await prisma.typingIndicator.deleteMany({
+      where: {
+        userId: session.user.id,
+        conversationId,
       },
     });
 
