@@ -15,8 +15,6 @@ import {
   Menu,
   X,
   User,
-  Bot,
-  Sparkles,
   RefreshCw,
   Copy,
   Check,
@@ -26,7 +24,25 @@ import {
   XCircle,
   Bell,
   Users,
+  Settings,
+  PlusSquare,
 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogTrigger,
+  DialogContent,
+  DialogHeader,
+  DialogFooter,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 
 interface UserType {
   id: string;
@@ -78,7 +94,7 @@ interface ChatMessage {
   };
 }
 
-type TabType = 'ai' | 'users' | 'requests';
+type TabType = 'users' | 'requests' | 'groups' | 'advanced';
 
 export default function DashboardPage() {
   const { data: session, status } = useSession();
@@ -89,15 +105,17 @@ export default function DashboardPage() {
   const [message, setMessage] = useState("");
   const [requestMessage, setRequestMessage] = useState("");
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<TabType>('ai');
-  const [aiMessages, setAIMessages] = useState<Message[]>([]);
+  const [activeTab, setActiveTab] = useState<TabType>('users');
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
-  const [isAILoading, setIsAILoading] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [chatRequests, setChatRequests] = useState<ChatRequest[]>([]);
   const [pendingCount, setPendingCount] = useState(0);
   const [isLoadingConnection, setIsLoadingConnection] = useState(false);
   const [showRequestModal, setShowRequestModal] = useState(false);
+  const [showCreateGroupDialog, setShowCreateGroupDialog] = useState(false);
+  const [groups, setGroups] = useState<any[]>([]);
+  const [newGroupName, setNewGroupName] = useState("");
+  const [newGroupDescription, setNewGroupDescription] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -111,16 +129,7 @@ export default function DashboardPage() {
     if (status === "authenticated") {
       fetchUsers();
       fetchChatRequests();
-      if (aiMessages.length === 0) {
-        setAIMessages([
-          {
-            id: 'welcome',
-            content: "Hello! 👋 I'm your AI assistant. I can help you with questions, provide information, write code, and much more. How can I assist you today?",
-            role: 'ai',
-            timestamp: new Date(),
-          },
-        ]);
-      }
+      fetchGroups();
     }
   }, [status]);
 
@@ -130,7 +139,7 @@ export default function DashboardPage() {
 
   useEffect(() => {
     scrollToBottom();
-  }, [aiMessages, chatMessages, scrollToBottom]);
+  }, [chatMessages, scrollToBottom]);
 
   const fetchUsers = async () => {
     try {
@@ -157,6 +166,18 @@ export default function DashboardPage() {
       }
     } catch (error) {
       console.error("Error fetching chat requests:", error);
+    }
+  };
+
+  const fetchGroups = async () => {
+    try {
+      const res = await fetch('/api/groups');
+      if (res.ok) {
+        const data = await res.json();
+        setGroups(data);
+      }
+    } catch (err) {
+      console.error('Error fetching groups', err);
     }
   };
 
@@ -256,9 +277,7 @@ export default function DashboardPage() {
     e.preventDefault();
     if (!message.trim()) return;
 
-    if (activeTab === 'ai') {
-      await handleAIMessage();
-    } else if (selectedUser && connectionStatus?.canChat && connectionStatus.conversationId) {
+    if (selectedUser && connectionStatus?.canChat && connectionStatus.conversationId) {
       await handleChatMessage();
     }
   };
@@ -285,74 +304,7 @@ export default function DashboardPage() {
     }
   };
 
-  const handleAIMessage = async () => {
-    const userMessage = message.trim();
-    if (!userMessage || isAILoading) return;
-
-    const userMsgId = `user-${Date.now()}`;
-    const aiMsgId = `ai-${Date.now()}`;
-
-    const newUserMessage: Message = {
-      id: userMsgId,
-      content: userMessage,
-      role: 'user',
-      timestamp: new Date(),
-    };
-
-    const loadingAIMessage: Message = {
-      id: aiMsgId,
-      content: '',
-      role: 'ai',
-      timestamp: new Date(),
-      isLoading: true,
-    };
-
-    setAIMessages((prev) => [...prev, newUserMessage, loadingAIMessage]);
-    setMessage("");
-    setIsAILoading(true);
-    inputRef.current?.focus();
-
-    try {
-      const conversationHistory = aiMessages.slice(-10).map((msg) => ({
-        role: msg.role,
-        content: msg.content,
-      }));
-
-      const response = await fetch("/api/ai/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          message: userMessage,
-          conversationHistory,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || "Failed to get AI response");
-      }
-
-      setAIMessages((prev) =>
-        prev.map((msg) =>
-          msg.id === aiMsgId
-            ? { ...msg, content: data.response, isLoading: false }
-            : msg
-        )
-      );
-    } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : "Sorry, I encountered an error.";
-      setAIMessages((prev) =>
-        prev.map((msg) =>
-          msg.id === aiMsgId
-            ? { ...msg, content: errorMessage, isLoading: false }
-            : msg
-        )
-      );
-    } finally {
-      setIsAILoading(false);
-    }
-  };
+  // AI integration removed per request
 
   const handleCopyMessage = async (content: string, id: string) => {
     try {
@@ -365,14 +317,31 @@ export default function DashboardPage() {
   };
 
   const clearAIChat = () => {
-    setAIMessages([
-      {
-        id: 'welcome-new',
-        content: "Chat cleared! How can I help you?",
-        role: 'ai',
-        timestamp: new Date(),
-      },
-    ]);
+    // AI removed
+  };
+
+  const handleCreateGroup = async () => {
+    if (!newGroupName.trim()) return alert('Group name is required');
+    try {
+      const res = await fetch('/api/groups', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: newGroupName.trim(), description: newGroupDescription.trim() }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setShowCreateGroupDialog(false);
+        setNewGroupName('');
+        setNewGroupDescription('');
+        await fetchGroups();
+        alert('Group created');
+      } else {
+        alert(data.error || 'Failed to create group');
+      }
+    } catch (err) {
+      console.error('Error creating group', err);
+      alert('Failed to create group');
+    }
   };
 
   const handleLogout = async () => {
@@ -417,11 +386,11 @@ export default function DashboardPage() {
         <div className="p-4 border-b border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
-              <MessageCircle className="w-6 h-6 text-blue-600" />
-              <span className="text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                AI Chat
-              </span>
-            </div>
+                <MessageCircle className="w-6 h-6 text-blue-600" />
+                <span className="text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                  Chat
+                </span>
+              </div>
             <button
               onClick={() => setIsSidebarOpen(false)}
               className="md:hidden text-gray-500 hover:text-gray-700"
@@ -454,15 +423,15 @@ export default function DashboardPage() {
         <div className="p-2 border-b border-gray-200 dark:border-gray-700">
           <div className="flex gap-1">
             <button
-              onClick={() => { setActiveTab('ai'); setSelectedUser(null); }}
+              onClick={() => setActiveTab('groups')}
               className={`flex-1 flex items-center justify-center gap-1 py-2 px-2 rounded-lg text-xs font-medium transition ${
-                activeTab === 'ai'
+                activeTab === 'groups'
                   ? "bg-gradient-to-r from-blue-600 to-purple-600 text-white"
                   : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300"
               }`}
             >
-              <Bot className="w-4 h-4" />
-              AI
+              <PlusSquare className="w-4 h-4" />
+              Groups
             </button>
             <button
               onClick={() => setActiveTab('users')}
@@ -491,32 +460,47 @@ export default function DashboardPage() {
                 </span>
               )}
             </button>
+            <button
+              onClick={() => setActiveTab('advanced')}
+              className={`flex-1 hidden md:flex items-center justify-center gap-1 py-2 px-2 rounded-lg text-xs font-medium transition ${
+                activeTab === 'advanced'
+                  ? "bg-gradient-to-r from-blue-600 to-purple-600 text-white"
+                  : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300"
+              }`}
+            >
+              <Settings className="w-4 h-4" />
+              Advanced
+            </button>
           </div>
         </div>
 
         {/* Tab Content */}
         <div className="flex-1 overflow-y-auto">
-          {activeTab === 'ai' && (
+          {activeTab === 'groups' && (
             <div className="p-4">
-              <div className="bg-gradient-to-br from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 rounded-xl p-4 mb-4">
-                <div className="flex items-center gap-2 mb-3">
-                  <Sparkles className="w-5 h-5 text-purple-600" />
-                  <h3 className="font-semibold text-gray-900 dark:text-white">AI Assistant</h3>
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-semibold">Groups</h3>
+                <div className="flex items-center gap-2">
+                  <button onClick={() => setShowCreateGroupDialog(true)} className="text-sm px-3 py-1 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg flex items-center gap-2">
+                    <PlusSquare className="w-4 h-4" /> Create
+                  </button>
                 </div>
-                <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">Ask me anything!</p>
-                <ul className="text-sm text-gray-600 dark:text-gray-400 space-y-1">
-                  <li>• Answering questions</li>
-                  <li>• Code assistance</li>
-                  <li>• Creative ideas</li>
-                </ul>
               </div>
-              <button
-                onClick={clearAIChat}
-                className="w-full flex items-center justify-center gap-2 py-2 text-sm text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
-              >
-                <RefreshCw className="w-4 h-4" />
-                Clear conversation
-              </button>
+              {groups.length === 0 ? (
+                <p className="text-sm text-gray-400">No groups yet. Create one to get started.</p>
+              ) : (
+                <div className="space-y-2">
+                  {groups.map((g: any) => (
+                    <div key={g.id} className="p-3 rounded-lg bg-gray-50 dark:bg-gray-700 flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-md bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white font-semibold">{(g.name || 'G').slice(0,2).toUpperCase()}</div>
+                      <div className="flex-1">
+                        <p className="font-medium text-sm truncate">{g.name}</p>
+                        <p className="text-xs text-gray-500 truncate">{g._count?.members ?? 0} members</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 
@@ -646,16 +630,14 @@ export default function DashboardPage() {
             <button onClick={() => setIsSidebarOpen(true)} className="md:hidden text-gray-500">
               <Menu className="w-6 h-6" />
             </button>
-            {activeTab === 'ai' && !selectedUser ? (
+            {activeTab === 'groups' && !selectedUser ? (
               <>
                 <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
-                  <Bot className="w-6 h-6 text-white" />
+                  <PlusSquare className="w-6 h-6 text-white" />
                 </div>
                 <div>
-                  <h2 className="text-lg font-semibold flex items-center gap-2">
-                    AI Assistant <Sparkles className="w-4 h-4 text-purple-500" />
-                  </h2>
-                  <p className="text-sm text-gray-500">Always ready to help</p>
+                  <h2 className="text-lg font-semibold flex items-center gap-2">Groups</h2>
+                  <p className="text-sm text-gray-500">Manage and join groups</p>
                 </div>
               </>
             ) : selectedUser ? (
@@ -676,60 +658,33 @@ export default function DashboardPage() {
                 </div>
               </>
             ) : (
-              <p className="text-gray-500">Select a chat</p>
+              <p className="text-gray-500">Select a conversation</p>
             )}
+            <div className="ml-auto">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button className="flex items-center gap-2">
+                    <Avatar>
+                      <AvatarImage src={session.user?.image || undefined} />
+                      <AvatarFallback className="bg-blue-600 text-white">{getInitials(session.user?.name || null)}</AvatarFallback>
+                    </Avatar>
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent sideOffset={8} className="w-48">
+                  <div className="px-2 py-1 text-sm text-gray-700">{session.user?.name}</div>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => setActiveTab('advanced')}>Account Settings</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setShowCreateGroupDialog(true)}>Create Group</DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleLogout}>Logout</DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           </div>
         </div>
 
         {/* Messages Area */}
         <div className="flex-1 overflow-y-auto p-4 bg-gray-50 dark:bg-gray-900">
-          {activeTab === 'ai' && !selectedUser ? (
-            // AI Chat
-            <div className="max-w-4xl mx-auto space-y-4">
-              {aiMessages.map((msg) => (
-                <div key={msg.id} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
-                  <div className={`flex gap-3 max-w-[85%] ${msg.role === "user" ? "flex-row-reverse" : ""}`}>
-                    {msg.role === "ai" && (
-                      <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
-                        <Bot className="w-5 h-5 text-white" />
-                      </div>
-                    )}
-                    <div className={`rounded-2xl px-4 py-3 ${
-                      msg.role === "user"
-                        ? "bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-tr-sm"
-                        : "bg-white dark:bg-gray-800 rounded-tl-sm shadow-sm border"
-                    }`}>
-                      {msg.isLoading ? (
-                        <div className="flex items-center gap-2">
-                          <div className="flex space-x-1">
-                            <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" />
-                            <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
-                            <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
-                          </div>
-                          <span className="text-sm text-gray-500">Thinking...</span>
-                        </div>
-                      ) : (
-                        <>
-                          <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
-                          <div className="flex items-center justify-between mt-2">
-                            <p className={`text-xs ${msg.role === "user" ? "text-blue-200" : "text-gray-500"}`}>
-                              {new Date(msg.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                            </p>
-                            {msg.role === "ai" && (
-                              <button onClick={() => handleCopyMessage(msg.content, msg.id)} className="text-gray-400 hover:text-gray-600">
-                                {copiedId === msg.id ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
-                              </button>
-                            )}
-                          </div>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              ))}
-              <div ref={messagesEndRef} />
-            </div>
-          ) : selectedUser ? (
+          {selectedUser ? (
             // User Chat
             <div className="max-w-4xl mx-auto">
               {isLoadingConnection ? (
@@ -823,29 +778,54 @@ export default function DashboardPage() {
               <div className="text-center">
                 <MessageCircle className="w-20 h-20 mx-auto mb-4 text-gray-300" />
                 <h3 className="text-xl font-semibold mb-2">Select a conversation</h3>
-                <p className="text-gray-500">Choose AI or a user to start chatting</p>
+                <p className="text-gray-500">Choose a user or group to start chatting</p>
               </div>
             </div>
           )}
         </div>
 
         {/* Message Input */}
-        {((activeTab === 'ai' && !selectedUser) || (selectedUser && connectionStatus?.canChat)) && (
+        {(selectedUser && connectionStatus?.canChat) && (
           <div className="bg-white dark:bg-gray-800 border-t p-4">
             <form onSubmit={handleSendMessage} className="flex gap-2 max-w-4xl mx-auto">
               <Input
                 ref={inputRef}
                 type="text"
-                placeholder={activeTab === 'ai' ? "Ask AI anything..." : `Message ${selectedUser?.name}...`}
+                placeholder={`Message ${selectedUser?.name}...`}
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
                 className="flex-1"
-                disabled={isAILoading}
+                
               />
-              <Button type="submit" size="icon" disabled={!message.trim() || isAILoading}>
-                {isAILoading ? <RefreshCw className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
+              <Button type="submit" size="icon" disabled={!message.trim()}>
+                <Send className="w-5 h-5" />
               </Button>
             </form>
+          </div>
+        )}
+
+        {/* Create Group Modal */}
+        {showCreateGroupDialog && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 max-w-md w-full">
+              <h3 className="text-lg font-semibold mb-4">Create Group</h3>
+              <input
+                value={newGroupName}
+                onChange={(e) => setNewGroupName(e.target.value)}
+                placeholder="Group name"
+                className="w-full p-3 border rounded-lg mb-3"
+              />
+              <textarea
+                value={newGroupDescription}
+                onChange={(e) => setNewGroupDescription(e.target.value)}
+                placeholder="Description (optional)"
+                className="w-full p-3 border rounded-lg mb-4 h-24"
+              />
+              <div className="flex gap-2">
+                <button onClick={() => setShowCreateGroupDialog(false)} className="flex-1 py-2 border rounded-lg hover:bg-gray-50">Cancel</button>
+                <button onClick={handleCreateGroup} className="flex-1 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg">Create</button>
+              </div>
+            </div>
           </div>
         )}
       </div>

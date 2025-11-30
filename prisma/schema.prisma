@@ -48,22 +48,32 @@ model User {
   emailVerified DateTime?
   image         String?
   password      String?
-  bio           String?
+  bio           String?   @db.Text
+  hobbies       String?   @db.Text // Comma-separated hobbies
+  location      String?
+  website       String?
+  phone         String?
+  dateOfBirth   DateTime?
+  gender        String?
+  occupation    String?
   status        String    @default("offline") // online, offline, away
   lastSeen      DateTime  @default(now())
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
-  accounts            Account[]
-  sessions            Session[]
-  sentMessages        Message[]              @relation("SentMessages")
-  conversationUsers   ConversationUser[]
-  initiatedCalls      Call[]                 @relation("CallInitiator")
-  receivedCalls       Call[]                 @relation("CallReceiver")
-  typingIndicators    TypingIndicator[]
-  readReceipts        ReadReceipt[]
-  sentChatRequests    ChatRequest[]          @relation("SentRequests")
-  receivedChatRequests ChatRequest[]         @relation("ReceivedRequests")
+  accounts             Account[]
+  sessions             Session[]
+  sentMessages         Message[]              @relation("SentMessages")
+  conversationUsers    ConversationUser[]
+  initiatedCalls       Call[]                 @relation("CallInitiator")
+  receivedCalls        Call[]                 @relation("CallReceiver")
+  typingIndicators     TypingIndicator[]
+  readReceipts         ReadReceipt[]
+  sentChatRequests     ChatRequest[]          @relation("SentRequests")
+  receivedChatRequests ChatRequest[]          @relation("ReceivedRequests")
+  createdGroups        Group[]                @relation("GroupCreator")
+  groupMemberships     GroupMember[]
+  groupMessages        GroupMessage[]
 }
 
 model VerificationToken {
@@ -190,5 +200,65 @@ model ChatRequest {
   @@index([senderId])
   @@index([receiverId])
   @@index([status])
+  @@index([createdAt])
+}
+
+// Group model for group chats
+model Group {
+  id          String   @id @default(cuid())
+  name        String
+  description String?  @db.Text
+  image       String?
+  isPrivate   Boolean  @default(false) // true = private, false = public
+  creatorId   String
+  maxMembers  Int      @default(100)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  creator  User           @relation("GroupCreator", fields: [creatorId], references: [id], onDelete: Cascade)
+  members  GroupMember[]
+  messages GroupMessage[]
+
+  @@index([creatorId])
+  @@index([isPrivate])
+  @@index([createdAt])
+}
+
+// Group membership
+model GroupMember {
+  id        String   @id @default(cuid())
+  userId    String
+  groupId   String
+  role      String   @default("member") // creator, admin, member
+  joinedAt  DateTime @default(now())
+  mutedUntil DateTime?
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  group Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, groupId])
+  @@index([userId])
+  @@index([groupId])
+  @@index([role])
+}
+
+// Group messages
+model GroupMessage {
+  id        String   @id @default(cuid())
+  content   String   @db.Text
+  type      String   @default("text") // text, image, file, system
+  senderId  String
+  groupId   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  isEdited  Boolean  @default(false)
+  isDeleted Boolean  @default(false)
+  metadata  Json?
+
+  sender User  @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  group  Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@index([groupId])
+  @@index([senderId])
   @@index([createdAt])
 }
