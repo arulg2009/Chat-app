@@ -76,7 +76,7 @@ export const authOptions: AuthOptions = {
   },
   secret: process.env.NEXTAUTH_SECRET,
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger }) {
       if (user) {
         token.id = user.id;
         token.email = user.email;
@@ -91,21 +91,23 @@ export const authOptions: AuthOptions = {
         session.user.email = token.email as string;
         session.user.name = token.name as string;
         session.user.image = token.picture as string | undefined;
-
-        // Update user status to online
-        try {
-          await prisma.user.update({
-            where: { id: token.id as string },
-            data: { status: "online", lastSeen: new Date() },
-          });
-        } catch (error) {
-          console.error("Error updating user status:", error);
-        }
       }
       return session;
     },
   },
   events: {
+    async signIn({ user }) {
+      if (user?.id) {
+        try {
+          await prisma.user.update({
+            where: { id: user.id },
+            data: { status: "online", lastSeen: new Date() },
+          });
+        } catch (error) {
+          console.error("Error updating user status on signin:", error);
+        }
+      }
+    },
     async signOut({ token }) {
       if (token?.id) {
         try {

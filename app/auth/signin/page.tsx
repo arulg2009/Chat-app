@@ -98,16 +98,23 @@ function SignInForm() {
         } else {
           setError(errorMessage);
         }
+        setIsLoading(false);
       } else if (result?.ok) {
-        // Success - force a full page reload to ensure session is recognized
-        window.location.replace(callbackUrl);
+        // Success - use router.refresh() then router.push() for proper session recognition
+        router.refresh();
+        // Small delay to ensure cookies are set before navigation
+        setTimeout(() => {
+          router.push(callbackUrl);
+        }, 100);
+        // Keep isLoading true while redirecting to avoid UI flash
+        return;
       } else {
         setError("Sign in failed. Please try again.");
+        setIsLoading(false);
       }
     } catch (error) {
       console.error("SignIn error:", error);
       setError("An unexpected error occurred. Please try again.");
-    } finally {
       setIsLoading(false);
     }
   };

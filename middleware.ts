@@ -51,6 +51,11 @@ export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const ip = request.ip || request.headers.get('x-forwarded-for') || 'unknown';
 
+  // Skip middleware for NextAuth API routes to prevent interference with auth flow
+  if (pathname.startsWith('/api/auth')) {
+    return NextResponse.next();
+  }
+
   // Rate limiting for API routes
   if (pathname.startsWith('/api/')) {
     if (!checkRateLimit(ip)) {
@@ -65,7 +70,11 @@ export async function middleware(request: NextRequest) {
   }
 
   // Check authentication using NextAuth JWT token
-  const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET });
+  const token = await getToken({ 
+    req: request, 
+    secret: process.env.NEXTAUTH_SECRET,
+    cookieName: process.env.NODE_ENV === 'production' ? '__Secure-next-auth.session-token' : 'next-auth.session-token',
+  });
 
   // Redirect unauthenticated users from protected routes to signin
   if (isProtectedPath(pathname) && !token) {

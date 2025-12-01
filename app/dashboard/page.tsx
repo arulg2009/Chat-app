@@ -57,13 +57,36 @@ interface ChatRequest {
   };
 }
 
+interface SentRequest {
+  id: string;
+  status: string;
+  message: string | null;
+  createdAt: string;
+  receiverId: string;
+  receiver: {
+    id: string;
+    name: string | null;
+    image: string | null;
+  };
+}
+
+interface User {
+  id: string;
+  name: string | null;
+  email: string | null;
+  image: string | null;
+  status: string;
+  lastSeen: string;
+}
+
 export default function DashboardPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<"chats" | "groups" | "requests">("chats");
+  const [activeTab, setActiveTab] = useState<"chats" | "groups" | "users" | "requests">("chats");
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [groups, setGroups] = useState<Group[]>([]);
   const [chatRequests, setChatRequests] = useState<ChatRequest[]>([]);
+  const [allUsers, setAllUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [showNewGroupModal, setShowNewGroupModal] = useState(false);
@@ -72,10 +95,10 @@ export default function DashboardPage() {
   const [newGroupPrivate, setNewGroupPrivate] = useState(false);
   const [creatingGroup, setCreatingGroup] = useState(false);
   const [showUserDropdown, setShowUserDropdown] = useState(false);
-
-  useEffect(() => {
-    if (status === "unauthenticated") router.push("/auth/signin");
-  }, [status, router]);
+  const [sendingRequest, setSendingRequest] = useState<string | null>(null);
+  const [sentRequests, setSentRequests] = useState<Set<string>>(new Set());
+  const [sentRequestsList, setSentRequestsList] = useState<SentRequest[]>([]);
+  const [requestsSubTab, setRequestsSubTab] = useState<"received" | "sent">("received");
 
   useEffect(() => {
     if (status === "authenticated") {
@@ -86,10 +109,12 @@ export default function DashboardPage() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [convRes, groupsRes, requestsRes] = await Promise.all([
+      const [convRes, groupsRes, requestsRes, usersRes, sentReqRes] = await Promise.all([
         fetch("/api/conversations"),
         fetch("/api/groups"),
         fetch("/api/chat-requests?type=received"),
+        fetch("/api/users"),
+        fetch("/api/chat-requests?type=sent"),
       ]);
 
       if (convRes.ok) setConversations(await convRes.json());
@@ -102,6 +127,27 @@ export default function DashboardPage() {
           : [];
         setChatRequests(pendingRequests);
       }
+      if (usersRes.ok) {
+        const users = await usersRes.json();
+        // Filter out current user
+        setAllUsers(users.filter((u: User) => u.id !== session?.user?.id));
+      }
+      if (sentReqRes.ok) {
+        const sentData = await sentReqRes.json();
+        // Track users we've already sent requests to
+        const sentUserIds = new Set<string>();
+        const pendingSentRequests: SentRequest[] = [];
+        if (Array.isArray(sentData)) {
+          sentData.forEach((r: any) => {
+            if (r.status === "pending") {
+              sentUserIds.add(r.receiverId);
+              pendingSentRequests.push(r);
+            }
+          });
+        }
+        setSentRequests(sentUserIds);
+        setSentRequestsList(pendingSentRequests);
+      }
     } catch (e) {
       console.error("Error fetching data:", e);
     } finally {
@@ -109,20 +155,64 @@ export default function DashboardPage() {
     }
   };
 
-  const handleRequestAction = async (requestId: string, action: "accepted" | "rejected") => {
+  const handleRequestAction = async (requestId: string, action: "accept" | "reject") => {
     try {
       const res = await fetch(`/api/chat-requests/${requestId}`, {
-        method: "PUT",
+        method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: action }),
+        body: JSON.stringify({ action }),
       });
       if (res.ok) {
         setChatRequests(prev => prev.filter(r => r.id !== requestId));
-        if (action === "accepted") fetchData();
+        if (action === "accept") fetchData();
       }
     } catch (e) {
       console.error("Error handling request:", e);
     }
+  };
+
+  const sendChatRequest = async (userId: string) => {
+    setSendingRequest(userId);
+    try {
+      const res = await fetch("/api/chat-requests", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ receiverId: userId }),
+      });
+      if (res.ok) {
+        setSentRequests(prev => new Set(prev).add(userId));
+        fetchData(); // Refresh to get the new sent request
+      }
+    } catch (e) {
+      console.error("Error sending request:", e);
+    } finally {
+      setSendingRequest(null);
+    }
+  };
+
+  const cancelSentRequest = async (requestId: string, receiverId: string) => {
+    try {
+      const res = await fetch(`/api/chat-requests/${requestId}`, {
+        method: "DELETE",
+      });
+      if (res.ok) {
+        setSentRequestsList(prev => prev.filter(r => r.id !== requestId));
+        setSentRequests(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(receiverId);
+          return newSet;
+        });
+      }
+    } catch (e) {
+      console.error("Error canceling request:", e);
+    }
+  };
+
+  // Check if user already has a conversation with another user
+  const hasConversationWith = (userId: string) => {
+    return conversations.some(conv => 
+      conv.users.some(u => u.user.id === userId)
+    );
   };
 
   const handleCreateGroup = async () => {
@@ -180,6 +270,11 @@ export default function DashboardPage() {
 
   const filteredGroups = groups.filter(g =>
     g.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const filteredUsers = allUsers.filter(u =>
+    u.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    u.email?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   if (status === "loading" || loading) {
@@ -273,11 +368,12 @@ export default function DashboardPage() {
       </div>
 
       {/* Tabs */}
-      <div className="flex border-b bg-card px-4">
+      <div className="flex border-b bg-card px-4 overflow-x-auto">
         {[
           { id: "chats", label: "Chats", icon: MessageCircle, count: conversations.length },
           { id: "groups", label: "Groups", icon: Users, count: groups.length },
-          { id: "requests", label: "Requests", icon: UserPlus, count: chatRequests.length },
+          { id: "users", label: "Find Users", icon: Search, count: 0 },
+          { id: "requests", label: "Requests", icon: UserPlus, count: chatRequests.length + sentRequestsList.length },
         ].map((tab) => (
           <button
             key={tab.id}
@@ -412,60 +508,232 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {/* Requests Tab */}
-        {activeTab === "requests" && (
+        {/* Users Tab */}
+        {activeTab === "users" && (
           <div className="divide-y">
-            {chatRequests.length === 0 ? (
+            {filteredUsers.length === 0 ? (
               <div className="p-8 text-center">
-                <UserPlus className="w-12 h-12 mx-auto text-muted-foreground/50 mb-3" />
-                <p className="text-sm text-muted-foreground">No pending requests</p>
+                <Search className="w-12 h-12 mx-auto text-muted-foreground/50 mb-3" />
+                <p className="text-sm text-muted-foreground">
+                  {searchQuery ? "No users found" : "Search for users to connect"}
+                </p>
                 <p className="text-xs text-muted-foreground mt-1">
-                  When someone sends you a chat request, it will appear here
+                  {searchQuery ? "Try a different search term" : "Use the search bar above to find people"}
                 </p>
               </div>
             ) : (
-              chatRequests.map((request) => (
-                <div
-                  key={request.id}
-                  className="flex items-center gap-3 px-4 py-3"
-                >
-                  <Avatar className="w-12 h-12">
-                    <AvatarImage src={request.sender.image || undefined} />
-                    <AvatarFallback className="bg-gradient-to-br from-green-500 to-teal-600 text-white">
-                      {getInitials(request.sender.name)}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium truncate">{request.sender.name}</p>
-                    {request.message ? (
-                      <p className="text-sm text-muted-foreground truncate">{request.message}</p>
-                    ) : (
-                      <p className="text-sm text-muted-foreground">Wants to connect with you</p>
-                    )}
-                    <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
-                      <Clock className="w-3 h-3" />
-                      {formatTime(request.createdAt)}
+              filteredUsers.map((user) => {
+                const alreadyConnected = hasConversationWith(user.id);
+                const requestSent = sentRequests.has(user.id);
+                const isSending = sendingRequest === user.id;
+
+                return (
+                  <div
+                    key={user.id}
+                    className="flex items-center gap-3 px-4 py-3 hover:bg-muted/50 transition-colors"
+                  >
+                    <div className="relative">
+                      <Avatar className="w-12 h-12">
+                        <AvatarImage src={user.image || undefined} />
+                        <AvatarFallback className="bg-gradient-to-br from-blue-500 to-indigo-600 text-white">
+                          {getInitials(user.name)}
+                        </AvatarFallback>
+                      </Avatar>
+                      {user.status === "online" && (
+                        <span className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-background rounded-full" />
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium truncate">{user.name || "Unknown"}</p>
+                      <p className="text-sm text-muted-foreground truncate">{user.email}</p>
+                      <p className="text-xs text-muted-foreground flex items-center gap-1">
+                        <Circle className={`w-2 h-2 ${user.status === "online" ? "fill-green-500 text-green-500" : "fill-gray-400 text-gray-400"}`} />
+                        {user.status === "online" ? "Online" : "Offline"}
+                      </p>
+                    </div>
+                    <div>
+                      {alreadyConnected ? (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-8"
+                          onClick={() => {
+                            const conv = conversations.find(c => c.users.some(u => u.user.id === user.id));
+                            if (conv) router.push(`/conversations/${conv.id}`);
+                          }}
+                        >
+                          <MessageCircle className="w-4 h-4 mr-1" />
+                          Chat
+                        </Button>
+                      ) : requestSent ? (
+                        <Button size="sm" variant="outline" className="h-8" disabled>
+                          <Clock className="w-4 h-4 mr-1" />
+                          Pending
+                        </Button>
+                      ) : (
+                        <Button
+                          size="sm"
+                          className="h-8 gradient-primary"
+                          onClick={() => sendChatRequest(user.id)}
+                          disabled={isSending}
+                        >
+                          {isSending ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <>
+                              <UserPlus className="w-4 h-4 mr-1" />
+                              Connect
+                            </>
+                          )}
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        )}
+
+        {/* Requests Tab */}
+        {activeTab === "requests" && (
+          <div>
+            {/* Sub-tabs for Received/Sent */}
+            <div className="flex border-b bg-muted/30 px-4">
+              <button
+                onClick={() => setRequestsSubTab("received")}
+                className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+                  requestsSubTab === "received"
+                    ? "border-primary text-primary"
+                    : "border-transparent text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                Received
+                {chatRequests.length > 0 && (
+                  <Badge variant="secondary" className="ml-1 text-[10px] px-1.5 py-0 bg-green-500/20 text-green-600">
+                    {chatRequests.length}
+                  </Badge>
+                )}
+              </button>
+              <button
+                onClick={() => setRequestsSubTab("sent")}
+                className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+                  requestsSubTab === "sent"
+                    ? "border-primary text-primary"
+                    : "border-transparent text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                Sent
+                {sentRequestsList.length > 0 && (
+                  <Badge variant="secondary" className="ml-1 text-[10px] px-1.5 py-0 bg-blue-500/20 text-blue-600">
+                    {sentRequestsList.length}
+                  </Badge>
+                )}
+              </button>
+            </div>
+
+            {/* Received Requests */}
+            {requestsSubTab === "received" && (
+              <div className="divide-y">
+                {chatRequests.length === 0 ? (
+                  <div className="p-8 text-center">
+                    <UserPlus className="w-12 h-12 mx-auto text-muted-foreground/50 mb-3" />
+                    <p className="text-sm text-muted-foreground">No pending requests</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      When someone sends you a chat request, it will appear here
                     </p>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="h-8 w-8 p-0"
-                      onClick={() => handleRequestAction(request.id, "rejected")}
+                ) : (
+                  chatRequests.map((request) => (
+                    <div
+                      key={request.id}
+                      className="flex items-center gap-3 px-4 py-3"
                     >
-                      <X className="w-4 h-4" />
-                    </Button>
-                    <Button
-                      size="sm"
-                      className="h-8 w-8 p-0 gradient-primary"
-                      onClick={() => handleRequestAction(request.id, "accepted")}
-                    >
-                      <Check className="w-4 h-4" />
-                    </Button>
+                      <Avatar className="w-12 h-12">
+                        <AvatarImage src={request.sender.image || undefined} />
+                        <AvatarFallback className="bg-gradient-to-br from-green-500 to-teal-600 text-white">
+                          {getInitials(request.sender.name)}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium truncate">{request.sender.name}</p>
+                        {request.message ? (
+                          <p className="text-sm text-muted-foreground truncate">{request.message}</p>
+                        ) : (
+                          <p className="text-sm text-muted-foreground">Wants to connect with you</p>
+                        )}
+                        <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+                          <Clock className="w-3 h-3" />
+                          {formatTime(request.createdAt)}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-8 w-8 p-0"
+                          onClick={() => handleRequestAction(request.id, "reject")}
+                        >
+                          <X className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          className="h-8 w-8 p-0 gradient-primary"
+                          onClick={() => handleRequestAction(request.id, "accept")}
+                        >
+                          <Check className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
+
+            {/* Sent Requests */}
+            {requestsSubTab === "sent" && (
+              <div className="divide-y">
+                {sentRequestsList.length === 0 ? (
+                  <div className="p-8 text-center">
+                    <Clock className="w-12 h-12 mx-auto text-muted-foreground/50 mb-3" />
+                    <p className="text-sm text-muted-foreground">No pending sent requests</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Requests you send to others will appear here until they respond
+                    </p>
                   </div>
-                </div>
-              ))
+                ) : (
+                  sentRequestsList.map((request) => (
+                    <div
+                      key={request.id}
+                      className="flex items-center gap-3 px-4 py-3"
+                    >
+                      <Avatar className="w-12 h-12">
+                        <AvatarImage src={request.receiver?.image || undefined} />
+                        <AvatarFallback className="bg-gradient-to-br from-blue-500 to-indigo-600 text-white">
+                          {getInitials(request.receiver?.name)}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium truncate">{request.receiver?.name || "Unknown"}</p>
+                        <p className="text-sm text-muted-foreground">Waiting for response</p>
+                        <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+                          <Clock className="w-3 h-3" />
+                          {formatTime(request.createdAt)}
+                        </p>
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-8 text-red-500 hover:text-red-600 hover:bg-red-50"
+                        onClick={() => cancelSentRequest(request.id, request.receiverId)}
+                      >
+                        <X className="w-4 h-4 mr-1" />
+                        Cancel
+                      </Button>
+                    </div>
+                  ))
+                )}
+              </div>
             )}
           </div>
         )}
