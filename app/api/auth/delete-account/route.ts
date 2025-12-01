@@ -117,7 +117,7 @@ export async function DELETE(request: NextRequest) {
     // Delete calls
     await prisma.call.deleteMany({
       where: {
-        OR: [{ callerId: userId }, { receiverId: userId }],
+        OR: [{ initiatorId: userId }, { receiverId: userId }],
       },
     });
 
