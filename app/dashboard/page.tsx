@@ -184,7 +184,11 @@ export default function DashboardPage() {
 
   const sendChatRequest = async (userId: string) => {
     // Optimistic update
-    setSentRequests(prev => new Set([...prev, userId]));
+    setSentRequests(prev => {
+      const newSet = new Set(prev);
+      newSet.add(userId);
+      return newSet;
+    });
     setSendingRequest(userId);
     try {
       const res = await fetch("/api/chat-requests", {
