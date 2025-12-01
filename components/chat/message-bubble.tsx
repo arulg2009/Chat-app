@@ -121,15 +121,19 @@ export function MessageBubble({
 
     switch (message.status) {
       case "sending":
-        return <div className="w-3 h-3 border border-current border-t-transparent rounded-full animate-spin" />;
+        return <div className="w-3 h-3 border border-gray-400 border-t-transparent rounded-full animate-spin" />;
       case "sent":
-        return <Check className="w-3.5 h-3.5" />;
+        // Single grey tick
+        return <Check className="w-3.5 h-3.5 text-gray-400" />;
       case "delivered":
-        return <CheckCheck className="w-3.5 h-3.5" />;
+        // Double grey ticks
+        return <CheckCheck className="w-3.5 h-3.5 text-gray-400" />;
       case "read":
-        return <CheckCheck className="w-3.5 h-3.5 text-blue-400" />;
+        // Double blue ticks
+        return <CheckCheck className="w-3.5 h-3.5 text-blue-500" />;
       default:
-        return <Check className="w-3.5 h-3.5" />;
+        // Default to single grey tick (sent)
+        return <Check className="w-3.5 h-3.5 text-gray-400" />;
     }
   };
 

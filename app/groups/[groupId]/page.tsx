@@ -907,18 +907,17 @@ export default function GroupChatPage() {
                                   msg.type === "image"
                                     ? "absolute bottom-2 right-2 bg-black/50 px-1.5 py-0.5 rounded text-white"
                                     : "",
-                                  isOwn && msg.type !== "image" ? "justify-end text-blue-200" : "text-gray-500"
+                                  isOwn && msg.type !== "image" ? "justify-end" : "text-gray-500"
                                 )}
                               >
                                 {msg.isEdited && <span className="text-xs opacity-70">edited</span>}
-                                <span className="text-xs">{formatTime(msg.createdAt)}</span>
+                                <span className={cn("text-xs", isOwn && msg.type !== "image" ? "text-blue-200" : "")}>{formatTime(msg.createdAt)}</span>
                                 {isOwn && (
-                                  <CheckCheck
-                                    className={cn(
-                                      "w-3.5 h-3.5",
-                                      msg.readBy && msg.readBy.length > 0 ? "text-blue-400" : ""
-                                    )}
-                                  />
+                                  msg.readBy && msg.readBy.length > 0 ? (
+                                    <CheckCheck className="w-3.5 h-3.5 text-blue-400" />
+                                  ) : (
+                                    <Check className="w-3.5 h-3.5 text-gray-300" />
+                                  )
                                 )}
                               </div>
                             </div>

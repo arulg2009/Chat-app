@@ -19,6 +19,8 @@ import {
   Copy,
   CheckCheck,
   Check,
+  Mic,
+  X,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -35,6 +37,7 @@ import {
   MessageSearch,
   ForwardMessageDialog,
 } from "@/components/chat";
+import { VoiceRecorder, VoiceMessagePlayer } from "@/components/chat/voice-message";
 import { cn } from "@/lib/utils";
 
 interface Message {
@@ -64,6 +67,7 @@ interface Message {
     users: Array<{ id: string; name: string | null }>;
     hasReacted: boolean;
   }>;
+  readBy?: Array<{ userId: string; readAt: string }>;
 }
 
 interface ConversationData {
@@ -102,6 +106,8 @@ export default function ConversationPage() {
   const [isTyping, setIsTyping] = useState(false);
   const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null);
   const [uploadingFile, setUploadingFile] = useState(false);
+  const [isRecordingVoice, setIsRecordingVoice] = useState(false);
+  const [sendingVoice, setSendingVoice] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -267,6 +273,33 @@ export default function ConversationPage() {
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
       }
+    }
+  };
+
+  const handleVoiceRecordingComplete = async (audioBlob: Blob, duration: number) => {
+    setIsRecordingVoice(false);
+    setSendingVoice(true);
+    
+    try {
+      const formData = new FormData();
+      formData.append("file", audioBlob, `voice-${Date.now()}.webm`);
+
+      const res = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        await sendMessage(data.url, "voice", {
+          duration,
+          mimeType: "audio/webm",
+        });
+      }
+    } catch (err) {
+      console.error("Error uploading voice message:", err);
+    } finally {
+      setSendingVoice(false);
     }
   };
 
@@ -439,6 +472,21 @@ export default function ConversationPage() {
                           className="max-w-full max-h-64 object-cover"
                         />
                       </div>
+                    ) : msg.type === "voice" || msg.type === "audio" ? (
+                      <div
+                        className={cn(
+                          "px-3 py-2 rounded-2xl min-w-[250px]",
+                          isOwn
+                            ? "bg-primary text-primary-foreground rounded-br-sm"
+                            : "bg-muted rounded-bl-sm"
+                        )}
+                      >
+                        <VoiceMessagePlayer
+                          src={msg.content}
+                          duration={msg.metadata?.duration}
+                          isOwn={isOwn}
+                        />
+                      </div>
                     ) : (
                       <div
                         className={cn(
@@ -510,7 +558,11 @@ export default function ConversationPage() {
                       <span className="text-[10px] text-muted-foreground">(edited)</span>
                     )}
                     {isOwn && (
-                      <CheckCheck className="w-3 h-3 text-primary" />
+                      msg.readBy && msg.readBy.length > 0 ? (
+                        <CheckCheck className="w-3 h-3 text-blue-500" />
+                      ) : (
+                        <Check className="w-3 h-3 text-gray-400" />
+                      )
                     )}
                   </div>
                 </div>
@@ -545,63 +597,86 @@ export default function ConversationPage() {
 
       {/* Input */}
       <div className="p-4 border-t bg-card">
-        <div className="flex items-center gap-2">
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*"
-            className="hidden"
-            onChange={handleFileUpload}
+        {isRecordingVoice ? (
+          <VoiceRecorder
+            onRecordingComplete={handleVoiceRecordingComplete}
+            onCancel={() => setIsRecordingVoice(false)}
           />
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => fileInputRef.current?.click()}
-            disabled={uploadingFile}
-          >
-            {uploadingFile ? (
-              <Loader2 className="w-5 h-5 animate-spin" />
-            ) : (
-              <ImageIcon className="w-5 h-5" />
-            )}
-          </Button>
-
-          <div className="relative">
+        ) : (
+          <div className="flex items-center gap-2">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleFileUpload}
+            />
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploadingFile || sendingVoice}
             >
-              <Smile className="w-5 h-5" />
+              {uploadingFile ? (
+                <Loader2 className="w-5 h-5 animate-spin" />
+              ) : (
+                <ImageIcon className="w-5 h-5" />
+              )}
             </Button>
-            {showEmojiPicker && (
-              <div className="absolute bottom-full left-0 mb-2">
-                <EmojiPicker onSelect={handleEmojiSelect} onClose={() => setShowEmojiPicker(false)} />
-              </div>
+
+            <div className="relative">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+              >
+                <Smile className="w-5 h-5" />
+              </Button>
+              {showEmojiPicker && (
+                <div className="absolute bottom-full left-0 mb-2">
+                  <EmojiPicker onSelect={handleEmojiSelect} onClose={() => setShowEmojiPicker(false)} />
+                </div>
+              )}
+            </div>
+
+            <Input
+              ref={inputRef}
+              value={message}
+              onChange={handleInputChange}
+              onKeyDown={handleKeyPress}
+              placeholder="Type a message..."
+              className="flex-1"
+            />
+
+            {message.trim() ? (
+              <Button
+                onClick={handleSendMessage}
+                disabled={sending}
+                className="shrink-0"
+              >
+                {sending ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Send className="w-4 h-4" />
+                )}
+              </Button>
+            ) : (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setIsRecordingVoice(true)}
+                disabled={sendingVoice}
+                className="shrink-0"
+              >
+                {sendingVoice ? (
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                ) : (
+                  <Mic className="w-5 h-5" />
+                )}
+              </Button>
             )}
           </div>
-
-          <Input
-            ref={inputRef}
-            value={message}
-            onChange={handleInputChange}
-            onKeyDown={handleKeyPress}
-            placeholder="Type a message..."
-            className="flex-1"
-          />
-
-          <Button
-            onClick={handleSendMessage}
-            disabled={sending || (!message.trim() && !uploadingFile)}
-            className="shrink-0"
-          >
-            {sending ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : (
-              <Send className="w-4 h-4" />
-            )}
-          </Button>
-        </div>
+        )}
       </div>
 
       {/* Search dialog */}
