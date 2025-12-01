@@ -16,7 +16,8 @@ function SignInForm() {
   const [error, setError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
 
-  const callbackUrl = searchParams?.get("callbackUrl") || "/dashboard";
+  const rawCallbackUrl = searchParams?.get("callbackUrl") || "/dashboard";
+  const callbackUrl = decodeURIComponent(rawCallbackUrl);
   const registered = searchParams?.get("registered");
   const verified = searchParams?.get("verified");
 
@@ -98,8 +99,8 @@ function SignInForm() {
           setError(errorMessage);
         }
       } else if (result?.ok) {
-        // Success - redirect to dashboard
-        window.location.href = callbackUrl;
+        // Success - force a full page reload to ensure session is recognized
+        window.location.replace(callbackUrl);
       } else {
         setError("Sign in failed. Please try again.");
       }
