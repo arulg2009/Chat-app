@@ -19,80 +19,69 @@ export async function GET(
     }
 
     const { conversationId } = params;
-
-    // Verify user is part of the conversation
-    const conversation = await prisma.conversation.findFirst({
-      where: {
-        id: conversationId,
-        users: {
-          some: {
-            userId: session.user.id,
-          },
-        },
-      },
-    });
-
-    if (!conversation) {
-      return NextResponse.json(
-        { error: "Conversation not found" },
-        { status: 404 }
-      );
-    }
-
-    // Get query params for pagination
     const url = new URL(request.url);
+    const includeConversation = url.searchParams.get('includeConversation') === 'true';
     const limit = parseInt(url.searchParams.get('limit') || '50');
     const cursor = url.searchParams.get('cursor');
 
-    const messages = await prisma.message.findMany({
+    // Fetch conversation with users if requested (combined query)
+    const conversation = await prisma.conversation.findFirst({
       where: {
-        conversationId,
-        isDeleted: false,
+        id: conversationId,
+        users: { some: { userId: session.user.id } },
       },
-      take: limit + 1,
-      ...(cursor && {
-        cursor: { id: cursor },
-        skip: 1,
-      }),
-      orderBy: {
-        createdAt: 'desc',
-      },
-      include: {
-        sender: {
-          select: {
-            id: true,
-            name: true,
-            image: true,
+      ...(includeConversation && {
+        select: {
+          id: true,
+          name: true,
+          isGroup: true,
+          users: {
+            select: {
+              userId: true,
+              user: {
+                select: { id: true, name: true, image: true, status: true },
+              },
+            },
           },
         },
+      }),
+    });
+
+    if (!conversation) {
+      return NextResponse.json({ error: "Conversation not found" }, { status: 404 });
+    }
+
+    const messages = await prisma.message.findMany({
+      where: { conversationId, isDeleted: false },
+      take: limit + 1,
+      ...(cursor && { cursor: { id: cursor }, skip: 1 }),
+      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true,
+        content: true,
+        type: true,
+        senderId: true,
+        createdAt: true,
+        isEdited: true,
+        isForwarded: true,
+        metadata: true,
+        sender: { select: { id: true, name: true, image: true } },
         replyTo: {
           select: {
             id: true,
             content: true,
             type: true,
-            sender: {
-              select: {
-                name: true,
-              },
-            },
+            sender: { select: { name: true } },
           },
         },
         reactions: {
-          include: {
-            user: {
-              select: {
-                id: true,
-                name: true,
-              },
-            },
-          },
-        },
-        readReceipts: {
           select: {
+            emoji: true,
             userId: true,
-            readAt: true,
+            user: { select: { id: true, name: true } },
           },
         },
+        readReceipts: { select: { userId: true, readAt: true } },
       },
     });
 
@@ -126,7 +115,8 @@ export async function GET(
     });
 
     return NextResponse.json({
-      messages: transformedMessages.reverse(), // Return in chronological order
+      messages: transformedMessages.reverse(),
+      conversation: includeConversation ? conversation : undefined,
       nextCursor,
       hasMore,
     });

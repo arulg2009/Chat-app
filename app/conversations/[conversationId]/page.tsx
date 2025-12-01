@@ -148,18 +148,11 @@ export default function ConversationPage() {
 
   const fetchConversation = async () => {
     try {
-      const res = await fetch(`/api/conversations/${conversationId}/messages`);
+      const res = await fetch(`/api/conversations/${conversationId}/messages?includeConversation=true`);
       if (res.ok) {
         const data = await res.json();
-        const messages = data.messages || [];
-        // Also fetch conversation details
-        const convRes = await fetch(`/api/conversations`);
-        if (convRes.ok) {
-          const conversations = await convRes.json();
-          const conv = conversations.find((c: any) => c.id === conversationId);
-          if (conv) {
-            setConversation({ ...conv, messages });
-          }
+        if (data.conversation) {
+          setConversation({ ...data.conversation, messages: data.messages || [] });
         }
       } else if (res.status === 404) {
         router.push("/dashboard");
@@ -199,7 +192,40 @@ export default function ConversationPage() {
   const sendMessage = async (content: string, type: string = "text", metadata?: any) => {
     if (!content.trim() && type === "text") return;
 
+    // Optimistic update - add message immediately
+    const tempId = `temp-${Date.now()}`;
+    const optimisticMessage: Message = {
+      id: tempId,
+      content,
+      type,
+      senderId: session?.user?.id || "",
+      createdAt: new Date().toISOString(),
+      sender: {
+        id: session?.user?.id || "",
+        name: session?.user?.name || null,
+        image: session?.user?.image || null,
+      },
+      replyTo: replyingTo ? {
+        id: replyingTo.id,
+        content: replyingTo.content,
+        type: replyingTo.type,
+        sender: replyingTo.sender,
+      } : null,
+      metadata,
+    };
+
+    setConversation(prev => prev ? {
+      ...prev,
+      messages: [...prev.messages, optimisticMessage],
+    } : null);
+    
+    const savedMessage = message;
+    const savedReplyingTo = replyingTo;
+    setMessage("");
+    setReplyingTo(null);
     setSending(true);
+    scrollToBottom();
+
     try {
       const res = await fetch(`/api/conversations/${conversationId}/messages`, {
         method: "POST",
@@ -207,20 +233,37 @@ export default function ConversationPage() {
         body: JSON.stringify({
           content,
           type,
-          replyToId: replyingTo?.id,
+          replyToId: savedReplyingTo?.id,
           metadata,
         }),
       });
 
       if (res.ok) {
-        setMessage("");
-        setReplyingTo(null);
+        const newMsg = await res.json();
+        // Replace temp message with real one
+        setConversation(prev => prev ? {
+          ...prev,
+          messages: prev.messages.map(m => m.id === tempId ? { ...newMsg, readBy: [] } : m),
+        } : null);
         updateTypingStatus(false);
-        await fetchConversation();
-        scrollToBottom();
+      } else {
+        // Rollback on error
+        setConversation(prev => prev ? {
+          ...prev,
+          messages: prev.messages.filter(m => m.id !== tempId),
+        } : null);
+        setMessage(savedMessage);
+        setReplyingTo(savedReplyingTo);
       }
     } catch (err) {
       console.error("Error sending message:", err);
+      // Rollback on error
+      setConversation(prev => prev ? {
+        ...prev,
+        messages: prev.messages.filter(m => m.id !== tempId),
+      } : null);
+      setMessage(savedMessage);
+      setReplyingTo(savedReplyingTo);
     } finally {
       setSending(false);
     }

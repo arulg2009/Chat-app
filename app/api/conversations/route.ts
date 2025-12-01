@@ -23,14 +23,17 @@ export async function GET(request: NextRequest) {
           },
         },
       },
-      include: {
+      select: {
+        id: true,
+        name: true,
+        isGroup: true,
+        updatedAt: true,
         users: {
-          include: {
+          select: {
             user: {
               select: {
                 id: true,
                 name: true,
-                email: true,
                 image: true,
                 status: true,
               },
@@ -43,7 +46,6 @@ export async function GET(request: NextRequest) {
             createdAt: 'desc',
           },
           select: {
-            id: true,
             content: true,
             createdAt: true,
             type: true,
@@ -53,31 +55,11 @@ export async function GET(request: NextRequest) {
       orderBy: {
         updatedAt: 'desc',
       },
+      take: 50,
     });
 
-    // Format response - match the format expected by dashboard
-    const formattedConversations = conversations.map((conv) => ({
-      id: conv.id,
-      name: conv.name,
-      isGroup: conv.isGroup,
-      updatedAt: conv.updatedAt,
-      users: conv.users.map((u) => ({
-        user: {
-          id: u.user.id,
-          name: u.user.name,
-          image: u.user.image,
-          status: u.user.status,
-        },
-      })),
-      messages: conv.messages.map((m) => ({
-        content: m.content,
-        type: m.type,
-        createdAt: m.createdAt,
-        sender: { name: null }, // Sender info not included in the query
-      })),
-    }));
-
-    return NextResponse.json(formattedConversations);
+    // Return directly - already in correct format
+    return NextResponse.json(conversations);
   } catch (error) {
     console.error("Error fetching conversations:", error);
     return NextResponse.json(

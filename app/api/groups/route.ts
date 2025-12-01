@@ -55,26 +55,16 @@ export async function GET(request: NextRequest) {
 
     const groups = await prisma.group.findMany({
       where: whereClause,
-      include: {
-        creator: {
-          select: {
-            id: true,
-            name: true,
-            image: true,
-          },
-        },
+      select: {
+        id: true,
+        name: true,
+        description: true,
+        image: true,
+        isPrivate: true,
         members: {
-          select: {
-            userId: true,
-            role: true,
-            user: {
-              select: {
-                id: true,
-                name: true,
-                image: true,
-              },
-            },
-          },
+          where: { userId: session.user.id },
+          select: { role: true },
+          take: 1,
         },
         _count: {
           select: {
@@ -84,8 +74,9 @@ export async function GET(request: NextRequest) {
         },
       },
       orderBy: {
-        createdAt: "desc",
+        updatedAt: "desc",
       },
+      take: 50,
     });
 
     return NextResponse.json(groups);

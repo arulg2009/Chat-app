@@ -30,29 +30,32 @@ export async function GET(request: NextRequest) {
 
     const requests = await prisma.chatRequest.findMany({
       where,
-      include: {
+      select: {
+        id: true,
+        status: true,
+        message: true,
+        createdAt: true,
+        senderId: true,
+        receiverId: true,
         sender: {
           select: {
             id: true,
             name: true,
-            email: true,
             image: true,
-            status: true,
           },
         },
         receiver: {
           select: {
             id: true,
             name: true,
-            email: true,
             image: true,
-            status: true,
           },
         },
       },
       orderBy: {
         createdAt: 'desc',
       },
+      take: 50,
     });
 
     return NextResponse.json(requests);

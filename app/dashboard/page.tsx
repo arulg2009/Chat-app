@@ -160,22 +160,31 @@ export default function DashboardPage() {
   };
 
   const handleRequestAction = async (requestId: string, action: "accept" | "reject") => {
+    // Optimistic update - remove immediately
+    const requestToProcess = chatRequests.find(r => r.id === requestId);
+    setChatRequests(prev => prev.filter(r => r.id !== requestId));
+    
     try {
       const res = await fetch(`/api/chat-requests/${requestId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action }),
       });
-      if (res.ok) {
-        setChatRequests(prev => prev.filter(r => r.id !== requestId));
-        if (action === "accept") fetchData();
+      if (res.ok && action === "accept") {
+        // Only refresh conversations on accept
+        const convRes = await fetch("/api/conversations");
+        if (convRes.ok) setConversations(await convRes.json());
       }
     } catch (e) {
+      // Rollback on error
+      if (requestToProcess) setChatRequests(prev => [...prev, requestToProcess]);
       console.error("Error handling request:", e);
     }
   };
 
   const sendChatRequest = async (userId: string) => {
+    // Optimistic update
+    setSentRequests(prev => new Set([...prev, userId]));
     setSendingRequest(userId);
     try {
       const res = await fetch("/api/chat-requests", {

@@ -7,14 +7,13 @@ export async function GET() {
       select: {
         id: true,
         name: true,
-        email: true,
         image: true,
         status: true,
-        lastSeen: true,
       },
       orderBy: {
         name: 'asc',
       },
+      take: 100,
     });
 
     return NextResponse.json(users);

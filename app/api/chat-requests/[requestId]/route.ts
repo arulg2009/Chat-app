@@ -74,48 +74,14 @@ export async function PATCH(
       );
     }
 
-    // Update the request status
-    const updatedRequest = await prisma.chatRequest.update({
-      where: { id: requestId },
-      data: {
-        status: action === 'accept' ? 'accepted' : 'rejected',
-        respondedAt: new Date(),
-      },
-      include: {
-        sender: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            image: true,
-          },
-        },
-        receiver: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            image: true,
-          },
-        },
-      },
-    });
-
-    // If accepted, create a conversation between the two users
+    // Use transaction for faster atomic updates
     if (action === 'accept') {
-      // Check if conversation already exists
-      const existingConversation = await prisma.conversation.findFirst({
-        where: {
-          isGroup: false,
-          AND: [
-            { users: { some: { userId: chatRequest.senderId } } },
-            { users: { some: { userId: chatRequest.receiverId } } },
-          ],
-        },
-      });
-
-      if (!existingConversation) {
-        await prisma.conversation.create({
+      await prisma.$transaction([
+        prisma.chatRequest.update({
+          where: { id: requestId },
+          data: { status: 'accepted', respondedAt: new Date() },
+        }),
+        prisma.conversation.create({
           data: {
             isGroup: false,
             users: {
@@ -125,17 +91,16 @@ export async function PATCH(
               ],
             },
           },
-        });
-      }
+        }),
+      ]);
+    } else {
+      await prisma.chatRequest.update({
+        where: { id: requestId },
+        data: { status: 'rejected', respondedAt: new Date() },
+      });
     }
 
-    return NextResponse.json({
-      success: true,
-      request: updatedRequest,
-      message: action === 'accept' 
-        ? 'Request accepted! You can now chat with this user.' 
-        : 'Request rejected.',
-    });
+    return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Error updating chat request:", error);
     return NextResponse.json(
@@ -188,14 +153,8 @@ export async function DELETE(
       );
     }
 
-    await prisma.chatRequest.delete({
-      where: { id: requestId },
-    });
-
-    return NextResponse.json({
-      success: true,
-      message: "Request cancelled successfully",
-    });
+    await prisma.chatRequest.delete({ where: { id: requestId } });
+    return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Error cancelling chat request:", error);
     return NextResponse.json(
