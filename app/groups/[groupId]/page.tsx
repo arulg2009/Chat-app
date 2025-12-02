@@ -150,6 +150,12 @@ export default function GroupChatPage() {
   const [typingUsers, setTypingUsers] = useState<Array<{ name: string | null }>>([]);
   const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null);
   
+  // Invite members states
+  const [showInviteModal, setShowInviteModal] = useState(false);
+  const [allUsers, setAllUsers] = useState<Array<{ id: string; name: string | null; image: string | null; status: string }>>([]);
+  const [inviteSearch, setInviteSearch] = useState("");
+  const [addingMember, setAddingMember] = useState<string | null>(null);
+  
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -209,6 +215,46 @@ export default function GroupChatPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const fetchAllUsers = async () => {
+    try {
+      const res = await fetch("/api/users");
+      if (res.ok) {
+        const users = await res.json();
+        setAllUsers(users);
+      }
+    } catch (err) {
+      console.error("Error fetching users:", err);
+    }
+  };
+
+  const handleAddMember = async (userId: string) => {
+    setAddingMember(userId);
+    try {
+      const res = await fetch(`/api/groups/${groupId}/members`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId }),
+      });
+      if (res.ok) {
+        await fetchGroup();
+        // Remove user from list since they're now a member
+        setAllUsers(prev => prev.filter(u => u.id !== userId));
+      } else {
+        const err = await res.json();
+        alert(err.error || "Failed to add member");
+      }
+    } catch (err) {
+      console.error("Error adding member:", err);
+    } finally {
+      setAddingMember(null);
+    }
+  };
+
+  const openInviteModal = () => {
+    setShowInviteModal(true);
+    fetchAllUsers();
   };
 
   const fetchTypingUsers = async () => {
@@ -1199,11 +1245,100 @@ export default function GroupChatPage() {
 
           {isAdmin && (
             <div className="p-4 border-t border-gray-200 dark:border-gray-700">
-              <Button className="w-full" variant="outline">
+              <Button className="w-full" variant="outline" onClick={openInviteModal}>
                 <UserPlus className="w-4 h-4 mr-2" /> Invite Members
               </Button>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Invite Members Modal */}
+      {showInviteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-black/50"
+            onClick={() => setShowInviteModal(false)}
+          />
+          <div className="relative bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-md max-h-[80vh] flex flex-col">
+            <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+              <h2 className="text-lg font-semibold">Invite Members</h2>
+              <button
+                onClick={() => setShowInviteModal(false)}
+                className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <Input
+                  value={inviteSearch}
+                  onChange={(e) => setInviteSearch(e.target.value)}
+                  placeholder="Search users..."
+                  className="pl-9"
+                />
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-2">
+              {allUsers
+                .filter(u => {
+                  // Filter out existing members
+                  const isMember = group?.members.some(m => m.userId === u.id);
+                  if (isMember) return false;
+                  // Filter by search
+                  if (!inviteSearch) return true;
+                  return u.name?.toLowerCase().includes(inviteSearch.toLowerCase());
+                })
+                .map(user => (
+                  <div
+                    key={user.id}
+                    className="flex items-center gap-3 p-3 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
+                  >
+                    <Avatar className="w-10 h-10">
+                      <AvatarImage src={user.image || undefined} />
+                      <AvatarFallback className="bg-gradient-to-br from-purple-500 to-pink-500 text-white">
+                        {user.name?.slice(0, 2).toUpperCase() || "?"}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium truncate">{user.name}</p>
+                      <p className="text-xs text-gray-500">
+                        {user.status === "online" ? "Online" : "Offline"}
+                      </p>
+                    </div>
+                    <Button
+                      size="sm"
+                      onClick={() => handleAddMember(user.id)}
+                      disabled={addingMember === user.id}
+                    >
+                      {addingMember === user.id ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <>
+                          <UserPlus className="w-4 h-4 mr-1" /> Add
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                ))}
+              
+              {allUsers.filter(u => {
+                const isMember = group?.members.some(m => m.userId === u.id);
+                if (isMember) return false;
+                if (!inviteSearch) return true;
+                return u.name?.toLowerCase().includes(inviteSearch.toLowerCase());
+              }).length === 0 && (
+                <div className="text-center py-8 text-gray-500">
+                  <Users className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                  <p>No users to invite</p>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       )}
 

@@ -148,6 +148,107 @@ export async function DELETE(
   }
 }
 
+// PUT /api/groups/[groupId]/members - Add a member to group (admin only)
+export async function PUT(
+  request: NextRequest,
+  { params }: { params: { groupId: string } }
+) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { groupId } = params;
+    const body = await request.json();
+    const { userId } = body;
+
+    if (!userId) {
+      return NextResponse.json({ error: "User ID is required" }, { status: 400 });
+    }
+
+    // Check if current user is admin of the group
+    const currentMembership = await prisma.groupMember.findUnique({
+      where: {
+        userId_groupId: {
+          userId: session.user.id,
+          groupId,
+        },
+      },
+    });
+
+    if (!currentMembership || !['owner', 'admin', 'creator'].includes(currentMembership.role)) {
+      return NextResponse.json(
+        { error: "Only admins can add members" },
+        { status: 403 }
+      );
+    }
+
+    // Check if target user exists
+    const targetUser = await prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!targetUser) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
+    // Check if already a member
+    const existingMembership = await prisma.groupMember.findUnique({
+      where: {
+        userId_groupId: {
+          userId,
+          groupId,
+        },
+      },
+    });
+
+    if (existingMembership) {
+      return NextResponse.json({ error: "User is already a member" }, { status: 400 });
+    }
+
+    // Check group member limit
+    const group = await prisma.group.findUnique({
+      where: { id: groupId },
+      include: { _count: { select: { members: true } } },
+    });
+
+    if (group && group.maxMembers && group._count.members >= group.maxMembers) {
+      return NextResponse.json(
+        { error: "Group has reached maximum member limit" },
+        { status: 400 }
+      );
+    }
+
+    // Add the member
+    const membership = await prisma.groupMember.create({
+      data: {
+        userId,
+        groupId,
+        role: "member",
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            image: true,
+            status: true,
+          },
+        },
+      },
+    });
+
+    return NextResponse.json(membership, { status: 201 });
+  } catch (error) {
+    console.error("Error adding member:", error);
+    return NextResponse.json(
+      { error: "Failed to add member" },
+      { status: 500 }
+    );
+  }
+}
+
 // GET /api/groups/[groupId]/members - Get group members
 export async function GET(
   request: NextRequest,
