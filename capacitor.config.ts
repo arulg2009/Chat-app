@@ -5,8 +5,8 @@ const config: CapacitorConfig = {
   appName: 'Chat App',
   webDir: 'out',
   server: {
-    // Point to your deployed Vercel URL - UPDATE THIS with your actual URL
-    url: 'https://chat-app-arulg2009.vercel.app',
+    // Point to your deployed domain
+    url: 'https://chatapp.karthikeyang.me',
     cleartext: true,
   },
   android: {
