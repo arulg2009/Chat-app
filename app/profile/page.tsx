@@ -29,7 +29,7 @@ const STATUS_OPTIONS = [
 ];
 
 export default function ProfilePage() {
-  const { data: session, status } = useSession();
+  const { data: session, status, update: updateSession } = useSession();
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -77,7 +77,13 @@ export default function ProfilePage() {
     setSaving(true);
     try {
       const res = await fetch("/api/profile", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(formData) });
-      if (res.ok) { setProfile(await res.json()); setSuccessMessage("Saved!"); setTimeout(() => setSuccessMessage(""), 2000); }
+      if (res.ok) { 
+        setProfile(await res.json()); 
+        // Update session if name changed
+        await updateSession();
+        setSuccessMessage("Saved!"); 
+        setTimeout(() => setSuccessMessage(""), 2000); 
+      }
     } catch (e) { console.error(e); }
     finally { setSaving(false); }
   };
@@ -99,7 +105,13 @@ export default function ProfilePage() {
       if (res.ok) {
         const { url } = await res.json();
         const updateRes = await fetch("/api/profile", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ image: url }) });
-        if (updateRes.ok) { setAvatarUrl(url); setSuccessMessage("Avatar updated!"); setTimeout(() => setSuccessMessage(""), 2000); }
+        if (updateRes.ok) { 
+          setAvatarUrl(url); 
+          // Update the session to persist the new avatar across the app
+          await updateSession();
+          setSuccessMessage("Avatar updated!"); 
+          setTimeout(() => setSuccessMessage(""), 2000); 
+        }
       }
     } catch (e) { console.error(e); }
     finally { setUploadingAvatar(false); }

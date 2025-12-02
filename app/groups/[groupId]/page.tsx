@@ -554,18 +554,38 @@ export default function GroupChatPage() {
   };
 
   const handleJoinGroup = async () => {
+    // Optimistic update - show as member immediately
+    setGroup(prev => prev ? { 
+      ...prev, 
+      isMember: true, 
+      userRole: 'member',
+      members: [...prev.members, {
+        userId: session?.user?.id || '',
+        role: 'member',
+        joinedAt: new Date().toISOString(),
+        user: {
+          id: session?.user?.id || '',
+          name: session?.user?.name || null,
+          image: session?.user?.image || null,
+          status: 'online'
+        }
+      }],
+      _count: { ...prev._count, members: prev._count.members + 1 }
+    } : prev);
+
     try {
-      const res = await fetch(`/api/groups/${groupId}/join`, {
+      const res = await fetch(`/api/groups/${groupId}/members`, {
         method: "POST",
       });
-      if (res.ok) {
-        await fetchGroup();
-      } else {
+      if (!res.ok) {
+        // Rollback on error
         const err = await res.json();
+        await fetchGroup();
         alert(err.error || "Failed to join group");
       }
     } catch (err) {
       console.error("Error joining group:", err);
+      await fetchGroup(); // Rollback
     }
   };
 
@@ -573,8 +593,8 @@ export default function GroupChatPage() {
     if (!confirm("Are you sure you want to leave this group?")) return;
 
     try {
-      const res = await fetch(`/api/groups/${groupId}/leave`, {
-        method: "POST",
+      const res = await fetch(`/api/groups/${groupId}/members`, {
+        method: "DELETE",
       });
       if (res.ok) {
         router.push("/dashboard");

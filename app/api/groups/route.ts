@@ -79,7 +79,9 @@ export async function GET(request: NextRequest) {
       take: 50,
     });
 
-    return NextResponse.json(groups);
+    const response = NextResponse.json(groups);
+    response.headers.set('Cache-Control', 's-maxage=5, stale-while-revalidate=15');
+    return response;
   } catch (error) {
     console.error("Error fetching groups:", error);
     return NextResponse.json(

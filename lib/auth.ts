@@ -76,13 +76,30 @@ export const authOptions: AuthOptions = {
   },
   secret: process.env.NEXTAUTH_SECRET,
   callbacks: {
-    async jwt({ token, user, trigger }) {
+    async jwt({ token, user, trigger, session }) {
       if (user) {
         token.id = user.id;
         token.email = user.email;
         token.name = user.name;
         token.picture = user.image;
       }
+      
+      // When session is updated (e.g., profile photo change), refresh token data from DB
+      if (trigger === "update" && token.id) {
+        try {
+          const dbUser = await prisma.user.findUnique({
+            where: { id: token.id as string },
+            select: { name: true, image: true },
+          });
+          if (dbUser) {
+            token.name = dbUser.name;
+            token.picture = dbUser.image;
+          }
+        } catch (error) {
+          console.error("Error refreshing token:", error);
+        }
+      }
+      
       return token;
     },
     async session({ session, token }) {

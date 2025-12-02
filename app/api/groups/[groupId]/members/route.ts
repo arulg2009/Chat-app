@@ -16,29 +16,27 @@ export async function POST(
 
     const { groupId } = params;
 
-    const group = await prisma.group.findUnique({
-      where: { id: groupId },
-      include: {
-        members: true,
-      },
-    });
+    // Faster: Run checks in parallel
+    const [group, existingMembership, memberCount] = await Promise.all([
+      prisma.group.findUnique({
+        where: { id: groupId },
+        select: { id: true, isPrivate: true, maxMembers: true },
+      }),
+      prisma.groupMember.findUnique({
+        where: { userId_groupId: { userId: session.user.id, groupId } },
+        select: { userId: true },
+      }),
+      prisma.groupMember.count({ where: { groupId } }),
+    ]);
 
     if (!group) {
       return NextResponse.json({ error: "Group not found" }, { status: 404 });
     }
 
-    // Check if already a member
-    const existingMembership = group.members.find(
-      (m) => m.userId === session.user.id
-    );
     if (existingMembership) {
-      return NextResponse.json(
-        { error: "Already a member" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Already a member" }, { status: 400 });
     }
 
-    // Check if group is private
     if (group.isPrivate) {
       return NextResponse.json(
         { error: "This is a private group. You need an invitation to join." },
@@ -46,8 +44,7 @@ export async function POST(
       );
     }
 
-    // Check max members
-    if (group.maxMembers && group.members.length >= group.maxMembers) {
+    if (group.maxMembers && memberCount >= group.maxMembers) {
       return NextResponse.json(
         { error: "Group has reached maximum member limit" },
         { status: 400 }

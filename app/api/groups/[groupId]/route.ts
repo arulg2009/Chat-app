@@ -29,7 +29,15 @@ export async function GET(
 
     const group = await prisma.group.findUnique({
       where: { id: groupId },
-      include: {
+      select: {
+        id: true,
+        name: true,
+        description: true,
+        image: true,
+        isPrivate: true,
+        maxMembers: true,
+        creatorId: true,
+        createdAt: true,
         creator: {
           select: {
             id: true,
@@ -38,7 +46,10 @@ export async function GET(
           },
         },
         members: {
-          include: {
+          select: {
+            userId: true,
+            role: true,
+            joinedAt: true,
             user: {
               select: {
                 id: true,
@@ -57,7 +68,16 @@ export async function GET(
           orderBy: {
             createdAt: "desc",
           },
-          include: {
+          select: {
+            id: true,
+            content: true,
+            type: true,
+            senderId: true,
+            createdAt: true,
+            isEdited: true,
+            isDeleted: true,
+            isForwarded: true,
+            metadata: true,
             sender: {
               select: {
                 id: true,
@@ -90,13 +110,18 @@ export async function GET(
     }
 
     // Reverse messages to show oldest first
-    group.messages.reverse();
+    const messages = [...group.messages].reverse();
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       ...group,
+      messages,
       isMember,
       userRole: group.members.find((m: GroupMemberType) => m.userId === session.user.id)?.role,
     });
+    
+    // Add cache headers for faster subsequent loads
+    response.headers.set('Cache-Control', 's-maxage=5, stale-while-revalidate=10');
+    return response;
   } catch (error) {
     console.error("Error fetching group:", error);
     return NextResponse.json(
