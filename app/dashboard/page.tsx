@@ -334,22 +334,22 @@ export default function DashboardPage() {
   return (
     <div className="h-screen flex flex-col bg-background">
       {/* Header */}
-      <header className="h-14 px-4 flex items-center justify-between border-b bg-card shrink-0">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg gradient-primary flex items-center justify-center">
-            <MessageCircle className="w-4 h-4 text-white" />
+      <header className="h-14 sm:h-16 px-3 sm:px-4 flex items-center justify-between border-b bg-card shrink-0 safe-area-top">
+        <div className="flex items-center gap-2 sm:gap-3">
+          <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-lg gradient-primary flex items-center justify-center">
+            <MessageCircle className="w-5 h-5 sm:w-5 sm:h-5 text-white" />
           </div>
-          <span className="font-semibold text-lg">ChatApp</span>
+          <span className="font-semibold text-base sm:text-lg">ChatApp</span>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1 sm:gap-2">
           {chatRequests.length > 0 && (
             <button
               onClick={() => setActiveTab("requests")}
-              className="relative p-2 hover:bg-muted rounded-lg"
+              className="relative p-2.5 sm:p-2 hover:bg-muted active:bg-muted/80 rounded-lg touch-manipulation"
             >
-              <Bell className="w-5 h-5" />
-              <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-red-500 text-white text-[10px] rounded-full flex items-center justify-center">
+              <Bell className="w-5 h-5 sm:w-5 sm:h-5" />
+              <span className="absolute top-1 right-1 w-4 h-4 bg-red-500 text-white text-[10px] rounded-full flex items-center justify-center">
                 {chatRequests.length}
               </span>
             </button>
@@ -358,11 +358,11 @@ export default function DashboardPage() {
           <div className="relative">
             <button
               onClick={() => setShowUserDropdown(!showUserDropdown)}
-              className="flex items-center gap-2 p-1.5 hover:bg-muted rounded-lg"
+              className="flex items-center gap-2 p-1.5 sm:p-2 hover:bg-muted active:bg-muted/80 rounded-lg touch-manipulation"
             >
-              <Avatar className="w-8 h-8">
+              <Avatar className="w-9 h-9 sm:w-10 sm:h-10">
                 <AvatarImage src={session.user?.image || undefined} />
-                <AvatarFallback className="bg-gradient-to-br from-blue-500 to-indigo-600 text-white text-xs">
+                <AvatarFallback className="bg-gradient-to-br from-blue-500 to-indigo-600 text-white text-xs sm:text-sm">
                   {getInitials(session.user?.name || null)}
                 </AvatarFallback>
               </Avatar>
@@ -411,37 +411,37 @@ export default function DashboardPage() {
       </header>
 
       {/* Search */}
-      <div className="px-4 py-3 border-b bg-card">
+      <div className="px-3 sm:px-4 py-3 border-b bg-card">
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
           <Input
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search conversations..."
-            className="pl-9 h-9 bg-muted/50"
+            placeholder="Search..."
+            className="pl-10 h-11 sm:h-12 bg-muted/50 text-base"
           />
         </div>
       </div>
 
       {/* Tabs */}
-      <div className="flex border-b bg-card px-4 overflow-x-auto">
+      <div className="flex border-b bg-card px-2 sm:px-4 overflow-x-auto scrollbar-none">
         {[
           { id: "chats", label: "Chats", icon: MessageCircle, count: conversations.length },
           { id: "groups", label: "Groups", icon: Users, count: groups.length },
-          { id: "users", label: "Find Users", icon: Search, count: 0 },
+          { id: "users", label: "Users", icon: Search, count: 0 },
           { id: "requests", label: "Requests", icon: UserPlus, count: chatRequests.length + sentRequestsList.length },
         ].map((tab) => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id as typeof activeTab)}
-            className={`flex items-center gap-1.5 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+            className={`flex items-center gap-1 sm:gap-1.5 px-3 sm:px-4 py-3.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap min-w-0 touch-manipulation ${
               activeTab === tab.id
                 ? "border-primary text-primary"
-                : "border-transparent text-muted-foreground hover:text-foreground"
+                : "border-transparent text-muted-foreground hover:text-foreground active:text-foreground"
             }`}
           >
-            <tab.icon className="w-4 h-4" />
-            {tab.label}
+            <tab.icon className="w-4 h-4 shrink-0" />
+            <span className="hidden xs:inline sm:inline">{tab.label}</span>
             {tab.count > 0 && (
               <Badge variant="secondary" className="ml-1 text-[10px] px-1.5 py-0">
                 {tab.count}
@@ -472,35 +472,35 @@ export default function DashboardPage() {
                   <Link
                     key={conv.id}
                     href={`/conversations/${conv.id}`}
-                    className="flex items-center gap-3 px-4 py-3 hover:bg-muted/50 transition-colors"
+                    className="flex items-center gap-3 px-3 sm:px-4 py-4 hover:bg-muted/50 active:bg-muted/70 transition-colors touch-manipulation"
                   >
                     <div className="relative">
-                      <Avatar className="w-12 h-12">
+                      <Avatar className="w-13 h-13 sm:w-14 sm:h-14">
                         <AvatarImage src={other?.image || undefined} />
-                        <AvatarFallback className="bg-gradient-to-br from-blue-500 to-indigo-600 text-white">
+                        <AvatarFallback className="bg-gradient-to-br from-blue-500 to-indigo-600 text-white text-base">
                           {getInitials(other?.name || null)}
                         </AvatarFallback>
                       </Avatar>
                       {other?.status === "online" && (
-                        <span className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-background rounded-full" />
+                        <span className="absolute bottom-0.5 right-0.5 w-3.5 h-3.5 bg-green-500 border-2 border-background rounded-full" />
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between">
-                        <span className="font-medium truncate">{other?.name || "Unknown"}</span>
+                        <span className="font-medium truncate text-base">{other?.name || "Unknown"}</span>
                         {lastMessage && (
-                          <span className="text-xs text-muted-foreground">
+                          <span className="text-xs text-muted-foreground ml-2">
                             {formatTime(lastMessage.createdAt)}
                           </span>
                         )}
                       </div>
                       {lastMessage && (
-                        <p className="text-sm text-muted-foreground truncate">
+                        <p className="text-sm text-muted-foreground truncate mt-0.5">
                           {lastMessage.type !== "text" ? `[${lastMessage.type}]` : lastMessage.content}
                         </p>
                       )}
                     </div>
-                    <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
+                    <ChevronRight className="w-5 h-5 text-muted-foreground shrink-0" />
                   </Link>
                 );
               })
@@ -511,22 +511,22 @@ export default function DashboardPage() {
         {/* Groups Tab */}
         {activeTab === "groups" && (
           <div>
-            <div className="p-4">
+            <div className="p-3 sm:p-4">
               <Button
                 onClick={() => setShowNewGroupModal(true)}
-                className="w-full gradient-primary"
-                size="sm"
+                className="w-full gradient-primary h-12"
+                size="lg"
               >
-                <Plus className="w-4 h-4 mr-2" />
+                <Plus className="w-5 h-5 mr-2" />
                 Create New Group
               </Button>
             </div>
             <div className="divide-y">
               {filteredGroups.length === 0 ? (
                 <div className="p-8 text-center">
-                  <Users className="w-12 h-12 mx-auto text-muted-foreground/50 mb-3" />
-                  <p className="text-sm text-muted-foreground">No groups yet</p>
-                  <p className="text-xs text-muted-foreground mt-1">
+                  <Users className="w-14 h-14 mx-auto text-muted-foreground/50 mb-3" />
+                  <p className="text-base text-muted-foreground">No groups yet</p>
+                  <p className="text-sm text-muted-foreground mt-1">
                     Create a group to start chatting with multiple people
                   </p>
                 </div>
@@ -535,28 +535,28 @@ export default function DashboardPage() {
                   <Link
                     key={group.id}
                     href={`/groups/${group.id}`}
-                    className="flex items-center gap-3 px-4 py-3 hover:bg-muted/50 transition-colors"
+                    className="flex items-center gap-3 px-3 sm:px-4 py-4 hover:bg-muted/50 active:bg-muted/70 transition-colors touch-manipulation"
                   >
-                    <Avatar className="w-12 h-12">
+                    <Avatar className="w-13 h-13 sm:w-14 sm:h-14">
                       <AvatarImage src={group.image || undefined} />
                       <AvatarFallback className="bg-gradient-to-br from-purple-500 to-pink-600 text-white">
-                        {group.isPrivate ? <Lock className="w-5 h-5" /> : <Hash className="w-5 h-5" />}
+                        {group.isPrivate ? <Lock className="w-6 h-6" /> : <Hash className="w-6 h-6" />}
                       </AvatarFallback>
                     </Avatar>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
-                        <span className="font-medium truncate">{group.name}</span>
+                        <span className="font-medium truncate text-base">{group.name}</span>
                         {group.isPrivate ? (
-                          <Lock className="w-3 h-3 text-muted-foreground" />
+                          <Lock className="w-3.5 h-3.5 text-muted-foreground" />
                         ) : (
-                          <Globe className="w-3 h-3 text-muted-foreground" />
+                          <Globe className="w-3.5 h-3.5 text-muted-foreground" />
                         )}
                       </div>
-                      <p className="text-sm text-muted-foreground">
+                      <p className="text-sm text-muted-foreground mt-0.5">
                         {group._count.members} members • {group._count.messages} messages
                       </p>
                     </div>
-                    <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
+                    <ChevronRight className="w-5 h-5 text-muted-foreground shrink-0" />
                   </Link>
                 ))
               )}
@@ -569,11 +569,11 @@ export default function DashboardPage() {
           <div className="divide-y">
             {filteredUsers.length === 0 ? (
               <div className="p-8 text-center">
-                <Search className="w-12 h-12 mx-auto text-muted-foreground/50 mb-3" />
-                <p className="text-sm text-muted-foreground">
+                <Search className="w-14 h-14 mx-auto text-muted-foreground/50 mb-3" />
+                <p className="text-base text-muted-foreground">
                   {searchQuery ? "No users found" : "Search for users to connect"}
                 </p>
-                <p className="text-xs text-muted-foreground mt-1">
+                <p className="text-sm text-muted-foreground mt-1">
                   {searchQuery ? "Try a different search term" : "Use the search bar above to find people"}
                 </p>
               </div>
@@ -586,23 +586,23 @@ export default function DashboardPage() {
                 return (
                   <div
                     key={user.id}
-                    className="flex items-center gap-3 px-4 py-3 hover:bg-muted/50 transition-colors"
+                    className="flex items-center gap-3 px-3 sm:px-4 py-4 hover:bg-muted/50 active:bg-muted/70 transition-colors"
                   >
                     <div className="relative">
-                      <Avatar className="w-12 h-12">
+                      <Avatar className="w-13 h-13 sm:w-14 sm:h-14">
                         <AvatarImage src={user.image || undefined} />
-                        <AvatarFallback className="bg-gradient-to-br from-blue-500 to-indigo-600 text-white">
+                        <AvatarFallback className="bg-gradient-to-br from-blue-500 to-indigo-600 text-white text-base">
                           {getInitials(user.name)}
                         </AvatarFallback>
                       </Avatar>
                       {user.status === "online" && (
-                        <span className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-background rounded-full" />
+                        <span className="absolute bottom-0.5 right-0.5 w-3.5 h-3.5 bg-green-500 border-2 border-background rounded-full" />
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="font-medium truncate">{user.name || "Unknown"}</p>
+                      <p className="font-medium truncate text-base">{user.name || "Unknown"}</p>
                       <p className="text-sm text-muted-foreground truncate">{user.email}</p>
-                      <p className="text-xs text-muted-foreground flex items-center gap-1">
+                      <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
                         <Circle className={`w-2 h-2 ${user.status === "online" ? "fill-green-500 text-green-500" : "fill-gray-400 text-gray-400"}`} />
                         {user.status === "online" ? "Online" : "Offline"}
                       </p>
@@ -612,24 +612,24 @@ export default function DashboardPage() {
                         <Button
                           size="sm"
                           variant="outline"
-                          className="h-8"
+                          className="h-11 px-4 touch-manipulation"
                           onClick={() => {
                             const conv = conversations.find(c => c.users.some(u => u.user.id === user.id));
                             if (conv) router.push(`/conversations/${conv.id}`);
                           }}
                         >
-                          <MessageCircle className="w-4 h-4 mr-1" />
+                          <MessageCircle className="w-4 h-4 mr-1.5" />
                           Chat
                         </Button>
                       ) : requestSent ? (
-                        <Button size="sm" variant="outline" className="h-8" disabled>
-                          <Clock className="w-4 h-4 mr-1" />
+                        <Button size="sm" variant="outline" className="h-11 px-4" disabled>
+                          <Clock className="w-4 h-4 mr-1.5" />
                           Pending
                         </Button>
                       ) : (
                         <Button
                           size="sm"
-                          className="h-8 gradient-primary"
+                          className="h-11 px-4 gradient-primary touch-manipulation"
                           onClick={() => sendChatRequest(user.id)}
                           disabled={isSending}
                         >
@@ -637,7 +637,7 @@ export default function DashboardPage() {
                             <Loader2 className="w-4 h-4 animate-spin" />
                           ) : (
                             <>
-                              <UserPlus className="w-4 h-4 mr-1" />
+                              <UserPlus className="w-4 h-4 mr-1.5" />
                               Connect
                             </>
                           )}
@@ -655,13 +655,13 @@ export default function DashboardPage() {
         {activeTab === "requests" && (
           <div>
             {/* Sub-tabs for Received/Sent */}
-            <div className="flex border-b bg-muted/30 px-4">
+            <div className="flex border-b bg-muted/30 px-3 sm:px-4">
               <button
                 onClick={() => setRequestsSubTab("received")}
-                className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+                className={`flex items-center gap-1.5 px-4 py-3.5 text-sm font-medium border-b-2 transition-colors touch-manipulation ${
                   requestsSubTab === "received"
                     ? "border-primary text-primary"
-                    : "border-transparent text-muted-foreground hover:text-foreground"
+                    : "border-transparent text-muted-foreground hover:text-foreground active:text-foreground"
                 }`}
               >
                 Received
@@ -673,10 +673,10 @@ export default function DashboardPage() {
               </button>
               <button
                 onClick={() => setRequestsSubTab("sent")}
-                className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+                className={`flex items-center gap-1.5 px-4 py-3.5 text-sm font-medium border-b-2 transition-colors touch-manipulation ${
                   requestsSubTab === "sent"
                     ? "border-primary text-primary"
-                    : "border-transparent text-muted-foreground hover:text-foreground"
+                    : "border-transparent text-muted-foreground hover:text-foreground active:text-foreground"
                 }`}
               >
                 Sent
@@ -693,9 +693,9 @@ export default function DashboardPage() {
               <div className="divide-y">
                 {chatRequests.length === 0 ? (
                   <div className="p-8 text-center">
-                    <UserPlus className="w-12 h-12 mx-auto text-muted-foreground/50 mb-3" />
-                    <p className="text-sm text-muted-foreground">No pending requests</p>
-                    <p className="text-xs text-muted-foreground mt-1">
+                    <UserPlus className="w-14 h-14 mx-auto text-muted-foreground/50 mb-3" />
+                    <p className="text-base text-muted-foreground">No pending requests</p>
+                    <p className="text-sm text-muted-foreground mt-1">
                       When someone sends you a chat request, it will appear here
                     </p>
                   </div>
@@ -703,16 +703,16 @@ export default function DashboardPage() {
                   chatRequests.map((request) => (
                     <div
                       key={request.id}
-                      className="flex items-center gap-3 px-4 py-3"
+                      className="flex items-center gap-3 px-3 sm:px-4 py-4"
                     >
-                      <Avatar className="w-12 h-12">
+                      <Avatar className="w-13 h-13 sm:w-14 sm:h-14">
                         <AvatarImage src={request.sender.image || undefined} />
-                        <AvatarFallback className="bg-gradient-to-br from-green-500 to-teal-600 text-white">
+                        <AvatarFallback className="bg-gradient-to-br from-green-500 to-teal-600 text-white text-base">
                           {getInitials(request.sender.name)}
                         </AvatarFallback>
                       </Avatar>
                       <div className="flex-1 min-w-0">
-                        <p className="font-medium truncate">{request.sender.name}</p>
+                        <p className="font-medium truncate text-base">{request.sender.name}</p>
                         {request.message ? (
                           <p className="text-sm text-muted-foreground truncate">{request.message}</p>
                         ) : (
@@ -727,17 +727,17 @@ export default function DashboardPage() {
                         <Button
                           size="sm"
                           variant="outline"
-                          className="h-8 w-8 p-0"
+                          className="h-11 w-11 p-0 touch-manipulation"
                           onClick={() => handleRequestAction(request.id, "reject")}
                         >
-                          <X className="w-4 h-4" />
+                          <X className="w-5 h-5" />
                         </Button>
                         <Button
                           size="sm"
-                          className="h-8 w-8 p-0 gradient-primary"
+                          className="h-11 w-11 p-0 gradient-primary touch-manipulation"
                           onClick={() => handleRequestAction(request.id, "accept")}
                         >
-                          <Check className="w-4 h-4" />
+                          <Check className="w-5 h-5" />
                         </Button>
                       </div>
                     </div>
@@ -751,9 +751,9 @@ export default function DashboardPage() {
               <div className="divide-y">
                 {sentRequestsList.length === 0 ? (
                   <div className="p-8 text-center">
-                    <Clock className="w-12 h-12 mx-auto text-muted-foreground/50 mb-3" />
-                    <p className="text-sm text-muted-foreground">No pending sent requests</p>
-                    <p className="text-xs text-muted-foreground mt-1">
+                    <Clock className="w-14 h-14 mx-auto text-muted-foreground/50 mb-3" />
+                    <p className="text-base text-muted-foreground">No pending sent requests</p>
+                    <p className="text-sm text-muted-foreground mt-1">
                       Requests you send to others will appear here until they respond
                     </p>
                   </div>
@@ -761,16 +761,16 @@ export default function DashboardPage() {
                   sentRequestsList.map((request) => (
                     <div
                       key={request.id}
-                      className="flex items-center gap-3 px-4 py-3"
+                      className="flex items-center gap-3 px-3 sm:px-4 py-4"
                     >
-                      <Avatar className="w-12 h-12">
+                      <Avatar className="w-13 h-13 sm:w-14 sm:h-14">
                         <AvatarImage src={request.receiver?.image || undefined} />
-                        <AvatarFallback className="bg-gradient-to-br from-blue-500 to-indigo-600 text-white">
+                        <AvatarFallback className="bg-gradient-to-br from-blue-500 to-indigo-600 text-white text-base">
                           {getInitials(request.receiver?.name)}
                         </AvatarFallback>
                       </Avatar>
                       <div className="flex-1 min-w-0">
-                        <p className="font-medium truncate">{request.receiver?.name || "Unknown"}</p>
+                        <p className="font-medium truncate text-base">{request.receiver?.name || "Unknown"}</p>
                         <p className="text-sm text-muted-foreground">Waiting for response</p>
                         <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
                           <Clock className="w-3 h-3" />
@@ -780,10 +780,10 @@ export default function DashboardPage() {
                       <Button
                         size="sm"
                         variant="outline"
-                        className="h-8 text-red-500 hover:text-red-600 hover:bg-red-50"
+                        className="h-11 px-4 text-red-500 hover:text-red-600 hover:bg-red-50 touch-manipulation"
                         onClick={() => cancelSentRequest(request.id, request.receiverId)}
                       >
-                        <X className="w-4 h-4 mr-1" />
+                        <X className="w-4 h-4 mr-1.5" />
                         Cancel
                       </Button>
                     </div>

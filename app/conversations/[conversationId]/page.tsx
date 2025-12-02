@@ -123,7 +123,7 @@ export default function ConversationPage() {
   useEffect(() => {
     if (status === "authenticated" && conversationId) {
       fetchConversation();
-      const interval = setInterval(fetchConversation, 5000); // Poll for new messages
+      const interval = setInterval(fetchConversation, 3000); // Poll for new messages (faster)
       return () => clearInterval(interval);
     }
   }, [status, conversationId]);
@@ -399,25 +399,25 @@ export default function ConversationPage() {
   return (
     <div className="h-screen flex flex-col bg-background">
       {/* Header */}
-      <header className="h-14 px-4 flex items-center gap-3 border-b bg-card shrink-0">
+      <header className="h-16 sm:h-14 px-2 sm:px-4 flex items-center gap-2 sm:gap-3 border-b bg-card shrink-0 safe-area-top">
         <Button
           variant="ghost"
           size="icon"
           onClick={() => router.push("/dashboard")}
-          className="shrink-0"
+          className="shrink-0 h-11 w-11 touch-manipulation"
         >
-          <ArrowLeft className="w-5 h-5" />
+          <ArrowLeft className="w-6 h-6 sm:w-5 sm:h-5" />
         </Button>
 
-        <Avatar className="w-10 h-10 shrink-0">
+        <Avatar className="w-11 h-11 sm:w-10 sm:h-10 shrink-0">
           <AvatarImage src={otherUser?.image || undefined} />
-          <AvatarFallback className="bg-gradient-to-br from-blue-500 to-indigo-600 text-white">
+          <AvatarFallback className="bg-gradient-to-br from-blue-500 to-indigo-600 text-white text-sm">
             {getInitials(otherUser?.name || null)}
           </AvatarFallback>
         </Avatar>
 
         <div className="flex-1 min-w-0">
-          <h1 className="font-semibold truncate">{otherUser?.name || "Unknown"}</h1>
+          <h1 className="font-semibold truncate text-base">{otherUser?.name || "Unknown"}</h1>
           <p className="text-xs text-muted-foreground">
             {otherUser?.status === "online" ? (
               <span className="text-green-500">Online</span>
@@ -427,18 +427,18 @@ export default function ConversationPage() {
           </p>
         </div>
 
-        <div className="flex items-center gap-1">
-          <Button variant="ghost" size="icon" onClick={() => setShowSearch(true)}>
+        <div className="flex items-center gap-0.5 sm:gap-1">
+          <Button variant="ghost" size="icon" onClick={() => setShowSearch(true)} className="h-11 w-11 touch-manipulation">
             <Search className="w-5 h-5" />
           </Button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon">
+              <Button variant="ghost" size="icon" className="h-11 w-11 touch-manipulation">
                 <MoreVertical className="w-5 h-5" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => router.push("/dashboard")}>
+              <DropdownMenuItem onClick={() => router.push("/dashboard")} className="h-11">
                 Back to Chats
               </DropdownMenuItem>
             </DropdownMenuContent>
@@ -659,6 +659,7 @@ export default function ConversationPage() {
               size="icon"
               onClick={() => fileInputRef.current?.click()}
               disabled={uploadingFile || sendingVoice}
+              className="h-11 w-11 shrink-0 touch-manipulation"
             >
               {uploadingFile ? (
                 <Loader2 className="w-5 h-5 animate-spin" />
@@ -667,11 +668,12 @@ export default function ConversationPage() {
               )}
             </Button>
 
-            <div className="relative">
+            <div className="relative hidden sm:block">
               <Button
                 variant="ghost"
                 size="icon"
                 onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                className="h-11 w-11 touch-manipulation"
               >
                 <Smile className="w-5 h-5" />
               </Button>
@@ -688,19 +690,19 @@ export default function ConversationPage() {
               onChange={handleInputChange}
               onKeyDown={handleKeyPress}
               placeholder="Type a message..."
-              className="flex-1"
+              className="flex-1 h-11 text-base"
             />
 
             {message.trim() ? (
               <Button
                 onClick={handleSendMessage}
                 disabled={sending}
-                className="shrink-0"
+                className="shrink-0 h-11 w-11 sm:w-auto sm:px-4 touch-manipulation"
               >
                 {sending ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <Loader2 className="w-5 h-5 animate-spin" />
                 ) : (
-                  <Send className="w-4 h-4" />
+                  <Send className="w-5 h-5" />
                 )}
               </Button>
             ) : (
@@ -709,7 +711,7 @@ export default function ConversationPage() {
                 size="icon"
                 onClick={() => setIsRecordingVoice(true)}
                 disabled={sendingVoice}
-                className="shrink-0"
+                className="shrink-0 h-11 w-11 touch-manipulation"
               >
                 {sendingVoice ? (
                   <Loader2 className="w-5 h-5 animate-spin" />

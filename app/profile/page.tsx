@@ -152,32 +152,32 @@ export default function ProfilePage() {
       )}
 
       {/* Header */}
-      <header className="h-12 px-4 flex items-center gap-3 border-b bg-card sticky top-0 z-10">
-        <button onClick={() => router.push("/dashboard")} className="p-1.5 hover:bg-muted rounded-md"><ArrowLeft className="w-4 h-4" /></button>
-        <h1 className="text-sm font-semibold">Settings</h1>
+      <header className="h-14 sm:h-12 px-3 sm:px-4 flex items-center gap-3 border-b bg-card sticky top-0 z-10 safe-area-top">
+        <button onClick={() => router.push("/dashboard")} className="p-2.5 sm:p-1.5 hover:bg-muted active:bg-muted/80 rounded-md touch-manipulation"><ArrowLeft className="w-5 h-5 sm:w-4 sm:h-4" /></button>
+        <h1 className="text-base sm:text-sm font-semibold">Settings</h1>
       </header>
 
-      <div className="max-w-2xl mx-auto px-4 py-4">
+      <div className="max-w-2xl mx-auto px-3 sm:px-4 py-4">
         {/* Profile Card */}
         <div className="bg-card rounded-xl p-4 mb-4 shadow-soft">
           <div className="flex items-center gap-4">
             <div className="relative">
-              <Avatar className="w-16 h-16 border-2 border-background shadow-soft">
+              <Avatar className="w-18 h-18 sm:w-16 sm:h-16 border-2 border-background shadow-soft">
                 <AvatarImage src={avatarUrl || session.user?.image || undefined} />
-                <AvatarFallback className="bg-gradient-to-br from-blue-500 to-indigo-600 text-white text-lg">{getInitials(profile?.name || session.user?.name || null)}</AvatarFallback>
+                <AvatarFallback className="bg-gradient-to-br from-blue-500 to-indigo-600 text-white text-xl sm:text-lg">{getInitials(profile?.name || session.user?.name || null)}</AvatarFallback>
               </Avatar>
               <input ref={fileInputRef} type="file" accept="image/*" onChange={handleAvatarUpload} className="hidden" />
-              <button onClick={() => fileInputRef.current?.click()} disabled={uploadingAvatar} className="absolute -bottom-1 -right-1 p-1.5 bg-primary rounded-full text-primary-foreground hover:opacity-90 shadow-soft disabled:opacity-50">
-                {uploadingAvatar ? <Loader2 className="w-3 h-3 animate-spin" /> : <Camera className="w-3 h-3" />}
+              <button onClick={() => fileInputRef.current?.click()} disabled={uploadingAvatar} className="absolute -bottom-1 -right-1 p-2 sm:p-1.5 bg-primary rounded-full text-primary-foreground hover:opacity-90 shadow-soft disabled:opacity-50 touch-manipulation">
+                {uploadingAvatar ? <Loader2 className="w-4 h-4 sm:w-3 sm:h-3 animate-spin" /> : <Camera className="w-4 h-4 sm:w-3 sm:h-3" />}
               </button>
             </div>
             <div className="flex-1 min-w-0">
-              <h2 className="text-base font-semibold truncate">{profile?.name || "User"}</h2>
-              <p className="text-xs text-muted-foreground truncate">{profile?.email}</p>
-              <div className="flex items-center gap-2 mt-1.5">
+              <h2 className="text-lg sm:text-base font-semibold truncate">{profile?.name || "User"}</h2>
+              <p className="text-sm sm:text-xs text-muted-foreground truncate">{profile?.email}</p>
+              <div className="flex items-center gap-2 mt-2 sm:mt-1.5">
                 <div className="relative">
-                  <button onClick={() => setShowStatusDropdown(!showStatusDropdown)} className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-muted/50 hover:bg-muted text-xs">
-                    <Circle className={`w-2 h-2 ${STATUS_OPTIONS.find(s => s.value === currentStatus)?.color} rounded-full`} />
+                  <button onClick={() => setShowStatusDropdown(!showStatusDropdown)} className="flex items-center gap-1.5 px-3 py-1 sm:px-2 sm:py-0.5 rounded-full bg-muted/50 hover:bg-muted active:bg-muted/80 text-sm sm:text-xs touch-manipulation">
+                    <Circle className={`w-2.5 h-2.5 sm:w-2 sm:h-2 ${STATUS_OPTIONS.find(s => s.value === currentStatus)?.color} rounded-full`} />
                     <span className="capitalize">{currentStatus}</span>
                   </button>
                   {showStatusDropdown && (
@@ -198,10 +198,10 @@ export default function ProfilePage() {
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-1 mb-4 overflow-x-auto scrollbar-none pb-1">
+        <div className="flex gap-1.5 sm:gap-1 mb-4 overflow-x-auto scrollbar-none pb-1 -mx-3 px-3 sm:mx-0 sm:px-0">
           {[{ id: "profile", icon: User, label: "Profile" }, { id: "privacy", icon: Shield, label: "Privacy" }, { id: "notifications", icon: Bell, label: "Alerts" }, { id: "appearance", icon: Palette, label: "Theme" }].map(tab => (
-            <button key={tab.id} onClick={() => setActiveTab(tab.id as typeof activeTab)} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium whitespace-nowrap transition-colors ${activeTab === tab.id ? "bg-primary text-primary-foreground" : "bg-card text-muted-foreground hover:bg-muted"}`}>
-              <tab.icon className="w-3.5 h-3.5" />{tab.label}
+            <button key={tab.id} onClick={() => setActiveTab(tab.id as typeof activeTab)} className={`flex items-center gap-1.5 px-4 py-2.5 sm:px-3 sm:py-1.5 rounded-md text-sm sm:text-xs font-medium whitespace-nowrap transition-colors touch-manipulation ${activeTab === tab.id ? "bg-primary text-primary-foreground" : "bg-card text-muted-foreground hover:bg-muted active:bg-muted/80"}`}>
+              <tab.icon className="w-4 h-4 sm:w-3.5 sm:h-3.5" />{tab.label}
             </button>
           ))}
         </div>
@@ -209,8 +209,8 @@ export default function ProfilePage() {
         {/* Profile Tab */}
         {activeTab === "profile" && (
           <div className="bg-card rounded-xl p-4 shadow-soft space-y-4">
-            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Personal Info</h3>
-            <div className="grid grid-cols-2 gap-3">
+            <h3 className="text-sm sm:text-xs font-semibold text-muted-foreground uppercase tracking-wider">Personal Info</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-3">
               {[
                 { icon: User, label: "Display Name", key: "name", placeholder: "Your name" },
                 { icon: User, label: "Real Name", key: "realName", placeholder: "Full name" },
@@ -220,32 +220,32 @@ export default function ProfilePage() {
                 { icon: Phone, label: "Phone", key: "phone", placeholder: "+1 234..." },
               ].map(field => (
                 <div key={field.key}>
-                  <label className="flex items-center gap-1 text-[10px] font-medium text-muted-foreground mb-1"><field.icon className="w-3 h-3" />{field.label}</label>
-                  <Input value={formData[field.key as keyof typeof formData]} onChange={(e) => setFormData({ ...formData, [field.key]: e.target.value })} placeholder={field.placeholder} className="h-8 text-xs" />
+                  <label className="flex items-center gap-1 text-xs sm:text-[10px] font-medium text-muted-foreground mb-1.5 sm:mb-1"><field.icon className="w-3.5 h-3.5 sm:w-3 sm:h-3" />{field.label}</label>
+                  <Input value={formData[field.key as keyof typeof formData]} onChange={(e) => setFormData({ ...formData, [field.key]: e.target.value })} placeholder={field.placeholder} className="h-11 sm:h-8 text-base sm:text-xs" />
                 </div>
               ))}
               <div>
-                <label className="flex items-center gap-1 text-[10px] font-medium text-muted-foreground mb-1"><Calendar className="w-3 h-3" />Birthday</label>
-                <Input type="date" value={formData.dateOfBirth} onChange={(e) => setFormData({ ...formData, dateOfBirth: e.target.value })} className="h-8 text-xs" />
+                <label className="flex items-center gap-1 text-xs sm:text-[10px] font-medium text-muted-foreground mb-1.5 sm:mb-1"><Calendar className="w-3.5 h-3.5 sm:w-3 sm:h-3" />Birthday</label>
+                <Input type="date" value={formData.dateOfBirth} onChange={(e) => setFormData({ ...formData, dateOfBirth: e.target.value })} className="h-11 sm:h-8 text-base sm:text-xs" />
               </div>
               <div>
-                <label className="text-[10px] font-medium text-muted-foreground mb-1 block">Gender</label>
-                <select value={formData.gender} onChange={(e) => setFormData({ ...formData, gender: e.target.value })} className="w-full h-8 px-2 text-xs bg-background border rounded-md">
+                <label className="text-xs sm:text-[10px] font-medium text-muted-foreground mb-1.5 sm:mb-1 block">Gender</label>
+                <select value={formData.gender} onChange={(e) => setFormData({ ...formData, gender: e.target.value })} className="w-full h-11 sm:h-8 px-3 sm:px-2 text-base sm:text-xs bg-background border rounded-md">
                   <option value="">Select</option><option value="male">Male</option><option value="female">Female</option><option value="other">Other</option>
                 </select>
               </div>
             </div>
             <div>
-              <label className="flex items-center gap-1 text-[10px] font-medium text-muted-foreground mb-1"><FileText className="w-3 h-3" />Bio</label>
-              <textarea value={formData.bio} onChange={(e) => setFormData({ ...formData, bio: e.target.value })} placeholder="About you..." className="w-full px-3 py-2 text-xs bg-background border rounded-md resize-none h-16" maxLength={200} />
-              <p className="text-[9px] text-muted-foreground mt-0.5">{formData.bio.length}/200</p>
+              <label className="flex items-center gap-1 text-xs sm:text-[10px] font-medium text-muted-foreground mb-1.5 sm:mb-1"><FileText className="w-3.5 h-3.5 sm:w-3 sm:h-3" />Bio</label>
+              <textarea value={formData.bio} onChange={(e) => setFormData({ ...formData, bio: e.target.value })} placeholder="About you..." className="w-full px-3 py-2.5 sm:py-2 text-base sm:text-xs bg-background border rounded-md resize-none h-24 sm:h-16" maxLength={200} />
+              <p className="text-xs sm:text-[9px] text-muted-foreground mt-1 sm:mt-0.5">{formData.bio.length}/200</p>
             </div>
             <div>
-              <label className="flex items-center gap-1 text-[10px] font-medium text-muted-foreground mb-1"><Heart className="w-3 h-3" />Interests</label>
-              <Input value={formData.hobbies} onChange={(e) => setFormData({ ...formData, hobbies: e.target.value })} placeholder="Reading, Music..." className="h-8 text-xs" />
+              <label className="flex items-center gap-1 text-xs sm:text-[10px] font-medium text-muted-foreground mb-1.5 sm:mb-1"><Heart className="w-3.5 h-3.5 sm:w-3 sm:h-3" />Interests</label>
+              <Input value={formData.hobbies} onChange={(e) => setFormData({ ...formData, hobbies: e.target.value })} placeholder="Reading, Music..." className="h-11 sm:h-8 text-base sm:text-xs" />
             </div>
-            <Button onClick={handleSaveProfile} disabled={saving} size="sm" className="gradient-primary text-xs h-8">
-              <Save className="w-3 h-3 mr-1.5" />{saving ? "Saving..." : "Save Changes"}
+            <Button onClick={handleSaveProfile} disabled={saving} size="sm" className="gradient-primary text-sm sm:text-xs h-11 sm:h-8 w-full sm:w-auto touch-manipulation">
+              <Save className="w-4 h-4 sm:w-3 sm:h-3 mr-1.5" />{saving ? "Saving..." : "Save Changes"}
             </Button>
           </div>
         )}

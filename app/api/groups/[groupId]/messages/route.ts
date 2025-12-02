@@ -166,7 +166,7 @@ export async function GET(
       readBy: [],
     }));
 
-    return NextResponse.json(transformedMessages.reverse());
+    return NextResponse.json({ messages: transformedMessages.reverse() });
   } catch (error) {
     console.error("Error fetching group messages:", error);
     return NextResponse.json(

@@ -171,11 +171,40 @@ export default function GroupChatPage() {
   useEffect(() => {
     if (status === "authenticated" && groupId) {
       fetchGroup();
-      // Start polling for typing indicators
+      // Start polling for new messages and typing indicators
+      const messageInterval = setInterval(fetchGroupMessages, 3000);
       const typingInterval = setInterval(fetchTypingUsers, 3000);
-      return () => clearInterval(typingInterval);
+      return () => {
+        clearInterval(messageInterval);
+        clearInterval(typingInterval);
+      };
     }
   }, [status, groupId]);
+
+  // Fetch only new messages (faster than full group fetch)
+  const fetchGroupMessages = async () => {
+    if (!group) return;
+    try {
+      const res = await fetch(`/api/groups/${groupId}/messages?limit=20`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.messages) {
+          setGroup(prev => {
+            if (!prev) return prev;
+            // Merge new messages, avoiding duplicates
+            const existingIds = new Set(prev.messages.map(m => m.id));
+            const newMsgs = data.messages.filter((m: GroupMessage) => !existingIds.has(m.id));
+            if (newMsgs.length > 0) {
+              return { ...prev, messages: [...prev.messages, ...newMsgs] };
+            }
+            return prev;
+          });
+        }
+      }
+    } catch (err) {
+      // Ignore polling errors
+    }
+  };
 
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -316,14 +345,44 @@ export default function GroupChatPage() {
     e.preventDefault();
     if ((!message.trim() && !pendingImage) || !group || sending) return;
 
-    setSending(true);
     const content = pendingImage ? pendingImage.url : message.trim();
     const type = pendingImage ? "image" : "text";
     const messageToSend = message;
+    const replyToMessage = replyingTo;
+    
+    // Create optimistic message immediately
+    const optimisticId = `temp-${Date.now()}`;
+    const optimisticMessage: GroupMessage = {
+      id: optimisticId,
+      content,
+      type,
+      senderId: session?.user?.id || "",
+      createdAt: new Date().toISOString(),
+      sender: {
+        id: session?.user?.id || "",
+        name: session?.user?.name || null,
+        image: session?.user?.image || null,
+      },
+      replyTo: replyToMessage ? {
+        id: replyToMessage.id,
+        content: replyToMessage.content,
+        type: replyToMessage.type,
+        sender: { name: replyToMessage.sender.name },
+      } : null,
+      reactions: [],
+      readBy: [],
+    };
+    
+    // Update UI immediately (optimistic)
+    setGroup((prev) =>
+      prev ? { ...prev, messages: [...prev.messages, optimisticMessage] } : prev
+    );
     setMessage("");
     setPendingImage(null);
     setImagePreview(null);
+    setReplyingTo(null);
     updateTypingStatus(false);
+    setSending(true);
 
     try {
       const res = await fetch(`/api/groups/${groupId}/messages`, {
@@ -332,19 +391,32 @@ export default function GroupChatPage() {
         body: JSON.stringify({
           content,
           type,
-          replyToId: replyingTo?.id || null,
+          replyToId: replyToMessage?.id || null,
         }),
       });
 
       if (res.ok) {
         const newMsg = await res.json();
+        // Replace optimistic message with real one
         setGroup((prev) =>
-          prev ? { ...prev, messages: [...prev.messages, newMsg] } : prev
+          prev ? { 
+            ...prev, 
+            messages: prev.messages.map(m => m.id === optimisticId ? newMsg : m)
+          } : prev
         );
-        setReplyingTo(null);
+      } else {
+        // Remove optimistic message on failure
+        setGroup((prev) =>
+          prev ? { ...prev, messages: prev.messages.filter(m => m.id !== optimisticId) } : prev
+        );
+        setMessage(messageToSend);
       }
     } catch (err) {
       console.error("Error sending message:", err);
+      // Remove optimistic message on error
+      setGroup((prev) =>
+        prev ? { ...prev, messages: prev.messages.filter(m => m.id !== optimisticId) } : prev
+      );
       setMessage(messageToSend);
     } finally {
       setSending(false);
@@ -703,43 +775,43 @@ export default function GroupChatPage() {
         )}
 
         {/* Header */}
-        <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 p-4">
-          <div className="flex items-center gap-3">
+        <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-3 sm:px-4 py-3 sm:py-4 safe-area-top">
+          <div className="flex items-center gap-2 sm:gap-3">
             <button
               onClick={() => router.push("/dashboard")}
-              className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
+              className="p-2.5 sm:p-2 hover:bg-gray-100 dark:hover:bg-gray-700 active:bg-gray-200 dark:active:bg-gray-600 rounded-lg touch-manipulation"
             >
-              <ArrowLeft className="w-5 h-5" />
+              <ArrowLeft className="w-5 h-5 sm:w-5 sm:h-5" />
             </button>
 
-            <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white font-semibold">
+            <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-lg bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white font-semibold text-sm sm:text-base">
               {group.name.slice(0, 2).toUpperCase()}
             </div>
 
-            <div className="flex-1">
+            <div className="flex-1 min-w-0">
               {editingName && isAdmin ? (
                 <div className="flex items-center gap-2">
                   <Input
                     value={newGroupName}
                     onChange={(e) => setNewGroupName(e.target.value)}
-                    className="h-8"
+                    className="h-9 sm:h-10"
                   />
-                  <button onClick={handleUpdateGroupName}>
+                  <button onClick={handleUpdateGroupName} className="p-2 touch-manipulation">
                     <Check className="w-5 h-5 text-green-500" />
                   </button>
-                  <button onClick={() => setEditingName(false)}>
+                  <button onClick={() => setEditingName(false)} className="p-2 touch-manipulation">
                     <X className="w-5 h-5 text-red-500" />
                   </button>
                 </div>
               ) : (
                 <h2
-                  className="text-lg font-semibold cursor-pointer"
+                  className="text-base sm:text-lg font-semibold cursor-pointer truncate"
                   onClick={() => isAdmin && setEditingName(true)}
                 >
                   {group.name}
                 </h2>
               )}
-              <p className="text-sm text-gray-500">
+              <p className="text-xs sm:text-sm text-gray-500 truncate">
                 {group._count.members} member{group._count.members !== 1 ? "s" : ""}
                 {typingUsers.length > 0 && (
                   <span className="text-blue-500 ml-2">
@@ -751,7 +823,7 @@ export default function GroupChatPage() {
 
             <button
               onClick={() => setShowSearch(true)}
-              className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
+              className="p-2.5 sm:p-2 hover:bg-gray-100 dark:hover:bg-gray-700 active:bg-gray-200 rounded-lg touch-manipulation"
             >
               <Search className="w-5 h-5" />
             </button>
@@ -759,8 +831,8 @@ export default function GroupChatPage() {
             <button
               onClick={() => setShowMembers(!showMembers)}
               className={cn(
-                "p-2 rounded-lg",
-                showMembers ? "bg-blue-100 text-blue-600" : "hover:bg-gray-100 dark:hover:bg-gray-700"
+                "p-2.5 sm:p-2 rounded-lg touch-manipulation",
+                showMembers ? "bg-blue-100 text-blue-600" : "hover:bg-gray-100 dark:hover:bg-gray-700 active:bg-gray-200"
               )}
             >
               <Users className="w-5 h-5" />
@@ -768,7 +840,7 @@ export default function GroupChatPage() {
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <button className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg">
+                <button className="p-2.5 sm:p-2 hover:bg-gray-100 dark:hover:bg-gray-700 active:bg-gray-200 rounded-lg touch-manipulation">
                   <MoreVertical className="w-5 h-5" />
                 </button>
               </DropdownMenuTrigger>
@@ -1103,7 +1175,7 @@ export default function GroupChatPage() {
                   </div>
                 )}
 
-                <form onSubmit={handleSendMessage} className="flex gap-2 max-w-4xl mx-auto relative">
+                <form onSubmit={handleSendMessage} className="flex gap-1 sm:gap-2 max-w-4xl mx-auto relative items-center">
                   <input
                     ref={fileInputRef}
                     type="file"
@@ -1116,7 +1188,7 @@ export default function GroupChatPage() {
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
                     disabled={uploadingFile}
-                    className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg disabled:opacity-50"
+                    className="p-2.5 sm:p-2 hover:bg-gray-100 dark:hover:bg-gray-700 active:bg-gray-200 rounded-lg disabled:opacity-50 touch-manipulation shrink-0"
                   >
                     <ImageIcon className="w-5 h-5 text-gray-500" />
                   </button>
@@ -1124,18 +1196,18 @@ export default function GroupChatPage() {
                   <Input
                     ref={inputRef}
                     type="text"
-                    placeholder={pendingImage ? "Add a caption or send..." : "Type a message..."}
+                    placeholder={pendingImage ? "Add a caption..." : "Message..."}
                     value={message}
                     onChange={handleInputChange}
-                    className="flex-1"
+                    className="flex-1 h-11 text-base"
                     disabled={uploadingFile}
                   />
 
-                  <div className="relative">
+                  <div className="relative hidden sm:block">
                     <button
                       type="button"
                       onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-                      className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
+                      className="p-2.5 hover:bg-gray-100 dark:hover:bg-gray-700 active:bg-gray-200 rounded-lg touch-manipulation"
                     >
                       <Smile className="w-5 h-5 text-gray-500" />
                     </button>
@@ -1152,7 +1224,7 @@ export default function GroupChatPage() {
                     <button
                       type="button"
                       onClick={() => setIsRecordingVoice(true)}
-                      className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
+                      className="p-2.5 sm:p-2 hover:bg-gray-100 dark:hover:bg-gray-700 active:bg-gray-200 rounded-lg touch-manipulation shrink-0"
                     >
                       <Mic className="w-5 h-5 text-gray-500" />
                     </button>
@@ -1161,6 +1233,7 @@ export default function GroupChatPage() {
                       type="submit"
                       size="icon"
                       disabled={(!message.trim() && !pendingImage) || sending || uploadingFile}
+                      className="h-11 w-11 shrink-0 touch-manipulation"
                     >
                       {sending ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
                     </Button>
@@ -1172,27 +1245,33 @@ export default function GroupChatPage() {
         )}
       </div>
 
-      {/* Members Sidebar */}
+      {/* Members Sidebar - Full screen on mobile, sidebar on desktop */}
       {showMembers && (
-        <div className="w-80 bg-white dark:bg-gray-800 border-l border-gray-200 dark:border-gray-700 flex flex-col">
-          <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
-            <h3 className="font-semibold">Members ({group._count.members})</h3>
-            <button
-              onClick={() => setShowMembers(false)}
-              className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          </div>
+        <>
+          {/* Mobile overlay */}
+          <div 
+            className="fixed inset-0 bg-black/50 z-40 sm:hidden" 
+            onClick={() => setShowMembers(false)} 
+          />
+          <div className="fixed inset-y-0 right-0 w-full max-w-sm sm:relative sm:w-80 bg-white dark:bg-gray-800 border-l border-gray-200 dark:border-gray-700 flex flex-col z-50 sm:z-auto safe-area-top safe-area-bottom">
+            <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+              <h3 className="font-semibold text-base">Members ({group._count.members})</h3>
+              <button
+                onClick={() => setShowMembers(false)}
+                className="p-2.5 hover:bg-gray-100 dark:hover:bg-gray-700 active:bg-gray-200 rounded-lg touch-manipulation"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
 
           <div className="flex-1 overflow-y-auto p-2">
             {group.members.map((member) => (
               <div
                 key={member.userId}
-                className="flex items-center gap-3 p-2 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg"
+                className="flex items-center gap-3 p-3 hover:bg-gray-50 dark:hover:bg-gray-700 active:bg-gray-100 rounded-lg touch-manipulation"
               >
                 <div className="relative">
-                  <Avatar className="w-10 h-10">
+                  <Avatar className="w-12 h-12 sm:w-10 sm:h-10">
                     <AvatarImage src={member.user.image || undefined} />
                     <AvatarFallback className="bg-gradient-to-br from-purple-500 to-pink-500 text-white">
                       {getInitials(member.user.name)}
@@ -1200,7 +1279,7 @@ export default function GroupChatPage() {
                   </Avatar>
                   <div
                     className={cn(
-                      "absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white",
+                      "absolute bottom-0 right-0 w-3.5 h-3.5 sm:w-3 sm:h-3 rounded-full border-2 border-white",
                       member.user.status === "online" ? "bg-green-500" : "bg-gray-400"
                     )}
                   />
@@ -1251,6 +1330,7 @@ export default function GroupChatPage() {
             </div>
           )}
         </div>
+        </>
       )}
 
       {/* Invite Members Modal */}
