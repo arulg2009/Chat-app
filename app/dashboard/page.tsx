@@ -447,10 +447,10 @@ export default function DashboardPage() {
       {/* Tabs */}
       <div className="flex border-b bg-card px-2 sm:px-4 overflow-x-auto scrollbar-none">
         {[
-          { id: "chats", label: "Chats", icon: MessageCircle, count: conversations.length },
-          { id: "groups", label: "Groups", icon: Users, count: groups.length },
+          { id: "chats", label: "Chats", icon: MessageCircle, count: 0 },
+          { id: "groups", label: "Groups", icon: Users, count: 0 },
           { id: "users", label: "Users", icon: Search, count: 0 },
-          { id: "requests", label: "Requests", icon: UserPlus, count: chatRequests.length + sentRequestsList.length },
+          { id: "requests", label: "Requests", icon: UserPlus, count: chatRequests.length },
         ].map((tab) => (
           <button
             key={tab.id}
