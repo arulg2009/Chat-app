@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import {
   MessageCircle, Users, Search, Plus, Settings, LogOut, Bell,
   Circle, ChevronRight, Clock, UserPlus, Check, X, Loader2,
-  Hash, Lock, Globe, MoreVertical, Trash2
+  Hash, Lock, Globe, MoreVertical, Trash2, Shield
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
@@ -103,12 +103,23 @@ export default function DashboardPage() {
   const [deletePassword, setDeletePassword] = useState("");
   const [deletingAccount, setDeletingAccount] = useState(false);
   const [deleteError, setDeleteError] = useState("");
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
     if (status === "authenticated") {
       fetchData();
+      checkAdmin();
     }
   }, [status]);
+
+  const checkAdmin = async () => {
+    try {
+      const res = await fetch("/api/admin/users");
+      setIsAdmin(res.ok);
+    } catch {
+      setIsAdmin(false);
+    }
+  };
 
   const fetchData = async () => {
     setLoading(true);
@@ -384,6 +395,16 @@ export default function DashboardPage() {
                     <Settings className="w-4 h-4" />
                     Settings
                   </Link>
+                  {isAdmin && (
+                    <Link
+                      href="/admin"
+                      className="flex items-center gap-2 px-3 py-2 text-sm text-purple-600 hover:bg-muted"
+                      onClick={() => setShowUserDropdown(false)}
+                    >
+                      <Shield className="w-4 h-4" />
+                      Admin Panel
+                    </Link>
+                  )}
                   <button
                     onClick={() => signOut({ callbackUrl: "/" })}
                     className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-muted"

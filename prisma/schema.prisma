@@ -48,6 +48,7 @@ model User {
   emailVerified DateTime?
   image         String?
   password      String?
+  role          String    @default("user") // user, admin
   bio           String?   @db.Text
   hobbies       String?   @db.Text // Comma-separated hobbies
   location      String?
