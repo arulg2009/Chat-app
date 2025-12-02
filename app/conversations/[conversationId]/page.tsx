@@ -399,7 +399,7 @@ export default function ConversationPage() {
   return (
     <div className="h-screen flex flex-col bg-background">
       {/* Header */}
-      <header className="h-16 sm:h-14 px-2 sm:px-4 flex items-center gap-2 sm:gap-3 border-b bg-card shrink-0 safe-area-top">
+      <header className="h-16 sm:h-14 px-2 sm:px-4 pt-2 sm:pt-0 flex items-center gap-2 sm:gap-3 border-b bg-card shrink-0">
         <Button
           variant="ghost"
           size="icon"

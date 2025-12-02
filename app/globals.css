@@ -57,6 +57,7 @@
     @apply bg-background text-foreground antialiased;
     font-feature-settings: "rlig" 1, "calt" 1;
     -webkit-text-size-adjust: 100%;
+    padding-top: env(safe-area-inset-top, 0px);
   }
   html {
     -webkit-tap-highlight-color: transparent;

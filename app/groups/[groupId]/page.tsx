@@ -155,9 +155,11 @@ export default function GroupChatPage() {
   const [allUsers, setAllUsers] = useState<Array<{ id: string; name: string | null; image: string | null; status: string }>>([]);
   const [inviteSearch, setInviteSearch] = useState("");
   const [addingMember, setAddingMember] = useState<string | null>(null);
+  const [uploadingGroupPhoto, setUploadingGroupPhoto] = useState(false);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const groupPhotoInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lastTypingRef = useRef<number>(0);
@@ -625,6 +627,35 @@ export default function GroupChatPage() {
     }
   };
 
+  const handleGroupPhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !file.type.startsWith("image/") || file.size > 10 * 1024 * 1024) return;
+    
+    setUploadingGroupPhoto(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      fd.append("type", "group");
+      
+      const uploadRes = await fetch("/api/upload", { method: "POST", body: fd });
+      if (uploadRes.ok) {
+        const { url } = await uploadRes.json();
+        const updateRes = await fetch(`/api/groups/${groupId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ image: url }),
+        });
+        if (updateRes.ok) {
+          setGroup((prev) => (prev ? { ...prev, image: url } : prev));
+        }
+      }
+    } catch (err) {
+      console.error("Error uploading group photo:", err);
+    } finally {
+      setUploadingGroupPhoto(false);
+    }
+  };
+
   const handleRemoveMember = async (userId: string) => {
     if (!confirm("Remove this member from the group?")) return;
 
@@ -795,7 +826,7 @@ export default function GroupChatPage() {
         )}
 
         {/* Header */}
-        <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-3 sm:px-4 py-3 sm:py-4 safe-area-top">
+        <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-3 sm:px-4 py-3 sm:py-4 pt-4 sm:pt-4">
           <div className="flex items-center gap-2 sm:gap-3">
             <button
               onClick={() => router.push("/dashboard")}
@@ -804,8 +835,39 @@ export default function GroupChatPage() {
               <ArrowLeft className="w-5 h-5 sm:w-5 sm:h-5" />
             </button>
 
-            <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-lg bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white font-semibold text-sm sm:text-base">
-              {group.name.slice(0, 2).toUpperCase()}
+            <div className="relative">
+              <input
+                ref={groupPhotoInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleGroupPhotoUpload}
+                className="hidden"
+              />
+              {group.image ? (
+                <Avatar className="w-11 h-11 sm:w-12 sm:h-12">
+                  <AvatarImage src={group.image} />
+                  <AvatarFallback className="bg-gradient-to-br from-purple-500 to-pink-500 text-white font-semibold text-sm">
+                    {group.name.slice(0, 2).toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+              ) : (
+                <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white font-semibold text-sm sm:text-base">
+                  {group.name.slice(0, 2).toUpperCase()}
+                </div>
+              )}
+              {isAdmin && (
+                <button
+                  onClick={() => groupPhotoInputRef.current?.click()}
+                  disabled={uploadingGroupPhoto}
+                  className="absolute -bottom-1 -right-1 p-1.5 bg-primary rounded-full text-primary-foreground hover:opacity-90 shadow-md disabled:opacity-50"
+                >
+                  {uploadingGroupPhoto ? (
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                  ) : (
+                    <ImageIcon className="w-3 h-3" />
+                  )}
+                </button>
+              )}
             </div>
 
             <div className="flex-1 min-w-0">
@@ -887,9 +949,18 @@ export default function GroupChatPage() {
           {!group.isMember ? (
             <div className="h-full flex items-center justify-center">
               <div className="text-center">
-                <div className="w-20 h-20 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white text-2xl font-bold">
-                  {group.name.slice(0, 2).toUpperCase()}
-                </div>
+                {group.image ? (
+                  <Avatar className="w-20 h-20 mx-auto mb-4">
+                    <AvatarImage src={group.image} />
+                    <AvatarFallback className="bg-gradient-to-br from-purple-500 to-pink-500 text-white text-2xl font-bold">
+                      {group.name.slice(0, 2).toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                ) : (
+                  <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white text-2xl font-bold">
+                    {group.name.slice(0, 2).toUpperCase()}
+                  </div>
+                )}
                 <h3 className="text-xl font-semibold mb-2">{group.name}</h3>
                 <p className="text-gray-500 mb-4">{group.description || "No description"}</p>
                 <p className="text-sm text-gray-400 mb-4">{group._count.members} members</p>

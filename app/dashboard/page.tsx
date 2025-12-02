@@ -345,7 +345,7 @@ export default function DashboardPage() {
   return (
     <div className="h-screen flex flex-col bg-background">
       {/* Header */}
-      <header className="h-14 sm:h-16 px-3 sm:px-4 flex items-center justify-between border-b bg-card shrink-0 safe-area-top">
+      <header className="h-14 sm:h-16 px-3 sm:px-4 pt-2 sm:pt-0 flex items-center justify-between border-b bg-card shrink-0">
         <div className="flex items-center gap-2 sm:gap-3">
           <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-lg gradient-primary flex items-center justify-center">
             <MessageCircle className="w-5 h-5 sm:w-5 sm:h-5 text-white" />
@@ -495,15 +495,15 @@ export default function DashboardPage() {
                     href={`/conversations/${conv.id}`}
                     className="flex items-center gap-3 px-3 sm:px-4 py-4 hover:bg-muted/50 active:bg-muted/70 transition-colors touch-manipulation"
                   >
-                    <div className="relative">
-                      <Avatar className="w-13 h-13 sm:w-14 sm:h-14">
+                    <div className="relative flex-shrink-0">
+                      <Avatar className="w-12 h-12 sm:w-14 sm:h-14">
                         <AvatarImage src={other?.image || undefined} />
-                        <AvatarFallback className="bg-gradient-to-br from-blue-500 to-indigo-600 text-white text-base">
+                        <AvatarFallback className="bg-gradient-to-br from-blue-500 to-indigo-600 text-white text-sm">
                           {getInitials(other?.name || null)}
                         </AvatarFallback>
                       </Avatar>
                       {other?.status === "online" && (
-                        <span className="absolute bottom-0.5 right-0.5 w-3.5 h-3.5 bg-green-500 border-2 border-background rounded-full" />
+                        <span className="absolute bottom-0.5 right-0.5 w-3 h-3 bg-green-500 border-2 border-background rounded-full" />
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
@@ -558,10 +558,10 @@ export default function DashboardPage() {
                     href={`/groups/${group.id}`}
                     className="flex items-center gap-3 px-3 sm:px-4 py-4 hover:bg-muted/50 active:bg-muted/70 transition-colors touch-manipulation"
                   >
-                    <Avatar className="w-13 h-13 sm:w-14 sm:h-14">
+                    <Avatar className="w-12 h-12 sm:w-14 sm:h-14 flex-shrink-0">
                       <AvatarImage src={group.image || undefined} />
-                      <AvatarFallback className="bg-gradient-to-br from-purple-500 to-pink-600 text-white">
-                        {group.isPrivate ? <Lock className="w-6 h-6" /> : <Hash className="w-6 h-6" />}
+                      <AvatarFallback className="bg-gradient-to-br from-purple-500 to-pink-600 text-white text-sm">
+                        {group.name.slice(0, 2).toUpperCase()}
                       </AvatarFallback>
                     </Avatar>
                     <div className="flex-1 min-w-0">
@@ -609,15 +609,15 @@ export default function DashboardPage() {
                     key={user.id}
                     className="flex items-center gap-3 px-3 sm:px-4 py-4 hover:bg-muted/50 active:bg-muted/70 transition-colors"
                   >
-                    <div className="relative">
-                      <Avatar className="w-13 h-13 sm:w-14 sm:h-14">
+                    <div className="relative flex-shrink-0">
+                      <Avatar className="w-12 h-12 sm:w-14 sm:h-14">
                         <AvatarImage src={user.image || undefined} />
-                        <AvatarFallback className="bg-gradient-to-br from-blue-500 to-indigo-600 text-white text-base">
+                        <AvatarFallback className="bg-gradient-to-br from-blue-500 to-indigo-600 text-white text-sm">
                           {getInitials(user.name)}
                         </AvatarFallback>
                       </Avatar>
                       {user.status === "online" && (
-                        <span className="absolute bottom-0.5 right-0.5 w-3.5 h-3.5 bg-green-500 border-2 border-background rounded-full" />
+                        <span className="absolute bottom-0.5 right-0.5 w-3 h-3 bg-green-500 border-2 border-background rounded-full" />
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
