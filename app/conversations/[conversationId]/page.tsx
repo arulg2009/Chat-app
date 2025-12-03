@@ -123,7 +123,10 @@ export default function ConversationPage() {
   useEffect(() => {
     if (status === "authenticated" && conversationId) {
       fetchConversation();
-      const interval = setInterval(fetchConversation, 3000); // Poll for new messages (faster)
+      // Faster polling - 2 seconds for real-time feel
+      const interval = setInterval(() => {
+        if (!document.hidden) fetchConversation();
+      }, 2000);
       return () => clearInterval(interval);
     }
   }, [status, conversationId]);
@@ -154,12 +157,12 @@ export default function ConversationPage() {
         if (data.conversation) {
           setConversation({ ...data.conversation, messages: data.messages || [] });
         }
+        setLoading(false);
       } else if (res.status === 404) {
         router.push("/dashboard");
       }
     } catch (err) {
       console.error("Error fetching conversation:", err);
-    } finally {
       setLoading(false);
     }
   };
@@ -428,7 +431,7 @@ export default function ConversationPage() {
         <Button
           variant="ghost"
           size="icon"
-          onClick={() => router.push("/dashboard")}
+          onClick={() => router.back()}
           className="shrink-0 h-11 w-11 touch-manipulation"
         >
           <ArrowLeft className="w-6 h-6 sm:w-5 sm:h-5" />
@@ -506,7 +509,7 @@ export default function ConversationPage() {
                   <div className="w-8 shrink-0" />
                 ) : null}
 
-                <div className={cn("max-w-[75%] flex flex-col", isOwn && "items-end")}>
+                <div className={cn("max-w-[80%] sm:max-w-[75%] flex flex-col", isOwn && "items-end")}>
                   {msg.replyTo && (
                     <div className="text-xs text-muted-foreground bg-muted/50 rounded px-2 py-1 mb-1 max-w-full truncate">
                       <Reply className="w-3 h-3 inline mr-1" />

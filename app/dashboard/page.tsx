@@ -109,6 +109,11 @@ export default function DashboardPage() {
     if (status === "authenticated") {
       fetchData();
       checkAdmin();
+      // Background refresh every 10 seconds for new data
+      const interval = setInterval(() => {
+        if (!document.hidden) fetchDataSilent();
+      }, 10000);
+      return () => clearInterval(interval);
     }
   }, [status]);
 
@@ -121,8 +126,30 @@ export default function DashboardPage() {
     }
   };
 
+  // Silent fetch without loading indicator
+  const fetchDataSilent = async () => {
+    try {
+      const [convRes, groupsRes, requestsRes] = await Promise.all([
+        fetch("/api/conversations"),
+        fetch("/api/groups"),
+        fetch("/api/chat-requests?type=received"),
+      ]);
+
+      if (convRes.ok) setConversations(await convRes.json());
+      if (groupsRes.ok) setGroups(await groupsRes.json());
+      if (requestsRes.ok) {
+        const data = await requestsRes.json();
+        const pendingRequests = Array.isArray(data) 
+          ? data.filter((r: ChatRequest) => r.status === "pending")
+          : [];
+        setChatRequests(pendingRequests);
+      }
+    } catch (e) {
+      // Ignore silent refresh errors
+    }
+  };
+
   const fetchData = async () => {
-    setLoading(true);
     try {
       const [convRes, groupsRes, requestsRes, usersRes, sentReqRes] = await Promise.all([
         fetch("/api/conversations"),
@@ -136,7 +163,6 @@ export default function DashboardPage() {
       if (groupsRes.ok) setGroups(await groupsRes.json());
       if (requestsRes.ok) {
         const data = await requestsRes.json();
-        // API returns array directly, filter for pending requests
         const pendingRequests = Array.isArray(data) 
           ? data.filter((r: ChatRequest) => r.status === "pending")
           : [];
@@ -144,12 +170,10 @@ export default function DashboardPage() {
       }
       if (usersRes.ok) {
         const users = await usersRes.json();
-        // Filter out current user
         setAllUsers(users.filter((u: User) => u.id !== session?.user?.id));
       }
       if (sentReqRes.ok) {
         const sentData = await sentReqRes.json();
-        // Track users we've already sent requests to
         const sentUserIds = new Set<string>();
         const pendingSentRequests: SentRequest[] = [];
         if (Array.isArray(sentData)) {
@@ -171,7 +195,7 @@ export default function DashboardPage() {
   };
 
   const handleRequestAction = async (requestId: string, action: "accept" | "reject") => {
-    // Optimistic update - remove immediately
+    // Optimistic update - remove immediately for instant feedback
     const requestToProcess = chatRequests.find(r => r.id === requestId);
     setChatRequests(prev => prev.filter(r => r.id !== requestId));
     
@@ -182,9 +206,13 @@ export default function DashboardPage() {
         body: JSON.stringify({ action }),
       });
       if (res.ok && action === "accept") {
-        // Only refresh conversations on accept
-        const convRes = await fetch("/api/conversations");
-        if (convRes.ok) setConversations(await convRes.json());
+        // Refresh conversations in background
+        fetch("/api/conversations").then(async (convRes) => {
+          if (convRes.ok) setConversations(await convRes.json());
+        });
+      } else if (!res.ok && requestToProcess) {
+        // Rollback on error
+        setChatRequests(prev => [...prev, requestToProcess]);
       }
     } catch (e) {
       // Rollback on error
@@ -746,9 +774,9 @@ export default function DashboardPage() {
                       key={request.id}
                       className="flex items-center gap-3 px-3 sm:px-4 py-4"
                     >
-                      <Avatar className="w-13 h-13 sm:w-14 sm:h-14">
+                      <Avatar className="w-12 h-12 sm:w-14 sm:h-14 flex-shrink-0">
                         <AvatarImage src={request.sender.image || undefined} />
-                        <AvatarFallback className="bg-gradient-to-br from-green-500 to-teal-600 text-white text-base">
+                        <AvatarFallback className="bg-gradient-to-br from-green-500 to-teal-600 text-white text-sm">
                           {getInitials(request.sender.name)}
                         </AvatarFallback>
                       </Avatar>
@@ -804,9 +832,9 @@ export default function DashboardPage() {
                       key={request.id}
                       className="flex items-center gap-3 px-3 sm:px-4 py-4"
                     >
-                      <Avatar className="w-13 h-13 sm:w-14 sm:h-14">
+                      <Avatar className="w-12 h-12 sm:w-14 sm:h-14 flex-shrink-0">
                         <AvatarImage src={request.receiver?.image || undefined} />
-                        <AvatarFallback className="bg-gradient-to-br from-blue-500 to-indigo-600 text-white text-base">
+                        <AvatarFallback className="bg-gradient-to-br from-blue-500 to-indigo-600 text-white text-sm">
                           {getInitials(request.receiver?.name)}
                         </AvatarFallback>
                       </Avatar>

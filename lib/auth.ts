@@ -114,27 +114,21 @@ export const authOptions: AuthOptions = {
   },
   events: {
     async signIn({ user }) {
+      // Fire and forget - don't block sign in
       if (user?.id) {
-        try {
-          await prisma.user.update({
-            where: { id: user.id },
-            data: { status: "online", lastSeen: new Date() },
-          });
-        } catch (error) {
-          console.error("Error updating user status on signin:", error);
-        }
+        prisma.user.update({
+          where: { id: user.id },
+          data: { status: "online", lastSeen: new Date() },
+        }).catch(() => {});
       }
     },
     async signOut({ token }) {
+      // Fire and forget - don't block sign out
       if (token?.id) {
-        try {
-          await prisma.user.update({
-            where: { id: token.id as string },
-            data: { status: "offline", lastSeen: new Date() },
-          });
-        } catch (error) {
-          console.error("Error updating user status on signout:", error);
-        }
+        prisma.user.update({
+          where: { id: token.id as string },
+          data: { status: "offline", lastSeen: new Date() },
+        }).catch(() => {});
       }
     },
   },

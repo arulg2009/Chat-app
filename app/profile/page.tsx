@@ -210,7 +210,7 @@ export default function ProfilePage() {
 
       {/* Header */}
       <header className="h-14 sm:h-12 px-3 sm:px-4 pt-2 sm:pt-0 flex items-center gap-3 border-b bg-card sticky top-0 z-10">
-        <button onClick={() => router.push("/dashboard")} className="p-2.5 sm:p-1.5 hover:bg-muted active:bg-muted/80 rounded-md touch-manipulation"><ArrowLeft className="w-5 h-5 sm:w-4 sm:h-4" /></button>
+        <button onClick={() => router.back()} className="p-2.5 sm:p-1.5 hover:bg-muted active:bg-muted/80 rounded-md touch-manipulation"><ArrowLeft className="w-5 h-5 sm:w-4 sm:h-4" /></button>
         <h1 className="text-base sm:text-sm font-semibold">Settings</h1>
       </header>
 

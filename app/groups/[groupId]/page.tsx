@@ -173,9 +173,13 @@ export default function GroupChatPage() {
   useEffect(() => {
     if (status === "authenticated" && groupId) {
       fetchGroup();
-      // Start polling for new messages and typing indicators
-      const messageInterval = setInterval(fetchGroupMessages, 3000);
-      const typingInterval = setInterval(fetchTypingUsers, 3000);
+      // Start polling for new messages and typing indicators - faster and only when visible
+      const messageInterval = setInterval(() => {
+        if (!document.hidden && group) fetchGroupMessages();
+      }, 2000);
+      const typingInterval = setInterval(() => {
+        if (!document.hidden) fetchTypingUsers();
+      }, 2500);
       return () => {
         clearInterval(messageInterval);
         clearInterval(typingInterval);
@@ -849,7 +853,7 @@ export default function GroupChatPage() {
         <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-3 sm:px-4 py-3 sm:py-4 pt-4 sm:pt-4">
           <div className="flex items-center gap-2 sm:gap-3">
             <button
-              onClick={() => router.push("/dashboard")}
+              onClick={() => router.back()}
               className="p-2.5 sm:p-2 hover:bg-gray-100 dark:hover:bg-gray-700 active:bg-gray-200 dark:active:bg-gray-600 rounded-lg touch-manipulation"
             >
               <ArrowLeft className="w-5 h-5 sm:w-5 sm:h-5" />
@@ -1009,7 +1013,7 @@ export default function GroupChatPage() {
                         id={`message-${msg.id}`}
                         className={cn("flex", isOwn ? "justify-end" : "justify-start")}
                       >
-                        <div className="max-w-[70%] rounded-2xl px-4 py-2 italic text-sm bg-gray-200 dark:bg-gray-700 text-gray-500">
+                        <div className="max-w-[85%] sm:max-w-[70%] rounded-2xl px-4 py-2 italic text-sm bg-gray-200 dark:bg-gray-700 text-gray-500">
                           <span className="flex items-center gap-1">
                             <Trash2 className="w-3.5 h-3.5" />
                             This message was deleted
@@ -1029,7 +1033,7 @@ export default function GroupChatPage() {
                         isHighlighted && "bg-yellow-100 dark:bg-yellow-900/30 -mx-4 px-4 py-2 rounded-lg"
                       )}
                     >
-                      <div className={cn("flex gap-2 max-w-[70%]", isOwn ? "flex-row-reverse" : "")}>
+                      <div className={cn("flex gap-2 max-w-[85%] sm:max-w-[70%]", isOwn ? "flex-row-reverse" : "")}>
                         {!isOwn && (
                           <Avatar className="w-8 h-8 flex-shrink-0">
                             <AvatarImage src={msg.sender.image || undefined} />

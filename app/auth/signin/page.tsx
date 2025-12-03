@@ -100,13 +100,10 @@ function SignInForm() {
         }
         setIsLoading(false);
       } else if (result?.ok) {
-        // Success - use router.refresh() then router.push() for proper session recognition
+        // Success - navigate immediately for speed
+        router.push(callbackUrl);
         router.refresh();
-        // Small delay to ensure cookies are set before navigation
-        setTimeout(() => {
-          router.push(callbackUrl);
-        }, 100);
-        // Keep isLoading true while redirecting to avoid UI flash
+        // Keep isLoading true while redirecting
         return;
       } else {
         setError("Sign in failed. Please try again.");
