@@ -173,16 +173,38 @@ export default function GroupChatPage() {
   useEffect(() => {
     if (status === "authenticated" && groupId) {
       fetchGroup();
-      // Start polling for new messages and typing indicators - faster and only when visible
-      const messageInterval = setInterval(() => {
-        if (!document.hidden && group) fetchGroupMessages();
-      }, 2000);
-      const typingInterval = setInterval(() => {
+      // Adaptive polling - faster when active, slower when idle/hidden
+      const poll = () => {
+        if (!document.hidden) {
+          if (group) fetchGroupMessages();
+        }
+      };
+      const pollTyping = () => {
         if (!document.hidden) fetchTypingUsers();
-      }, 2500);
+      };
+      
+      const messageInterval = setInterval(poll, document.hidden ? 10000 : 2000);
+      const typingInterval = setInterval(pollTyping, 2500);
+      
+      // Immediate poll on visibility change and focus
+      const handleVisibility = () => {
+        if (!document.hidden) {
+          if (group) fetchGroupMessages();
+          fetchTypingUsers();
+        }
+      };
+      const handleFocus = () => {
+        if (group) fetchGroupMessages();
+      };
+      
+      document.addEventListener('visibilitychange', handleVisibility);
+      window.addEventListener('focus', handleFocus);
+      
       return () => {
         clearInterval(messageInterval);
         clearInterval(typingInterval);
+        document.removeEventListener('visibilitychange', handleVisibility);
+        window.removeEventListener('focus', handleFocus);
       };
     }
   }, [status, groupId]);

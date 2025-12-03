@@ -110,11 +110,24 @@ export default function DashboardPage() {
     if (status === "authenticated") {
       fetchData();
       checkAdmin();
-      // Background refresh every 10 seconds for new data
+      // Adaptive polling - 5s when active, skip when hidden, immediate on focus
       const interval = setInterval(() => {
         if (!document.hidden) fetchDataSilent();
-      }, 10000);
-      return () => clearInterval(interval);
+      }, 5000);
+      
+      const handleVisibility = () => {
+        if (!document.hidden) fetchDataSilent();
+      };
+      const handleFocus = () => fetchDataSilent();
+      
+      document.addEventListener('visibilitychange', handleVisibility);
+      window.addEventListener('focus', handleFocus);
+      
+      return () => {
+        clearInterval(interval);
+        document.removeEventListener('visibilitychange', handleVisibility);
+        window.removeEventListener('focus', handleFocus);
+      };
     }
   }, [status]);
 

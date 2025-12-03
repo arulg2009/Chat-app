@@ -39,6 +39,7 @@ import {
 } from "@/components/chat";
 import { VoiceRecorder, VoiceMessagePlayer } from "@/components/chat/voice-message";
 import { cn } from "@/lib/utils";
+import { useRealtime } from "@/lib/realtime";
 
 interface Message {
   id: string;
@@ -123,11 +124,34 @@ export default function ConversationPage() {
   useEffect(() => {
     if (status === "authenticated" && conversationId) {
       fetchConversation();
-      // Faster polling - 2 seconds for real-time feel
-      const interval = setInterval(() => {
+      // Adaptive polling - faster when active, slower when idle/hidden
+      let pollInterval = 2000; // Start with 2s
+      
+      const poll = () => {
+        if (document.hidden) {
+          pollInterval = 10000; // 10s when hidden
+        } else {
+          pollInterval = 2000; // 2s when active
+        }
+        fetchConversation();
+      };
+      
+      const interval = setInterval(poll, pollInterval);
+      
+      // Immediate poll on visibility change
+      const handleVisibility = () => {
         if (!document.hidden) fetchConversation();
-      }, 2000);
-      return () => clearInterval(interval);
+      };
+      const handleFocus = () => fetchConversation();
+      
+      document.addEventListener('visibilitychange', handleVisibility);
+      window.addEventListener('focus', handleFocus);
+      
+      return () => {
+        clearInterval(interval);
+        document.removeEventListener('visibilitychange', handleVisibility);
+        window.removeEventListener('focus', handleFocus);
+      };
     }
   }, [status, conversationId]);
 
