@@ -414,6 +414,7 @@ export default function ConversationPage() {
   if (loading || !conversation) {
     return (
       <div className="h-screen flex flex-col bg-background">
+        {/* Header skeleton */}
         <header className="h-16 sm:h-14 px-2 sm:px-4 pt-2 sm:pt-0 flex items-center gap-2 sm:gap-3 border-b bg-card shrink-0">
           <Button
             variant="ghost"
@@ -429,8 +430,22 @@ export default function ConversationPage() {
             <div className="w-16 h-3 bg-muted rounded animate-pulse mt-1" />
           </div>
         </header>
-        <div className="flex-1 flex items-center justify-center">
-          <Loader2 className="w-6 h-6 animate-spin text-primary" />
+        {/* Messages skeleton - WhatsApp style */}
+        <div className="flex-1 overflow-hidden p-4 space-y-3">
+          {[false, true, false, false, true, false, true, true].map((isOwn, i) => (
+            <div key={i} className={`flex gap-2 ${isOwn ? "justify-end" : "justify-start"}`} style={{ animationDelay: `${i * 50}ms` }}>
+              {!isOwn && <div className="w-8 h-8 rounded-full bg-muted animate-pulse flex-shrink-0" />}
+              <div className={`rounded-2xl p-3 max-w-[70%] animate-pulse ${isOwn ? "bg-primary/20" : "bg-muted"}`}>
+                <div className="h-3 w-32 bg-muted-foreground/20 rounded mb-2" />
+                <div className="h-3 w-48 bg-muted-foreground/20 rounded mb-1" />
+                <div className="h-2 w-12 bg-muted-foreground/20 rounded mt-2 ml-auto" />
+              </div>
+            </div>
+          ))}
+        </div>
+        {/* Input skeleton */}
+        <div className="p-3 border-t bg-card">
+          <div className="h-12 bg-muted rounded-full animate-pulse" />
         </div>
       </div>
     );

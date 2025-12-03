@@ -829,6 +829,7 @@ export default function GroupChatPage() {
   if (loading || !group) {
     return (
       <div className="h-screen flex flex-col bg-gray-100 dark:bg-gray-900">
+        {/* Header skeleton */}
         <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-3 sm:px-4 py-3 sm:py-4 pt-4 sm:pt-4">
           <div className="flex items-center gap-2 sm:gap-3">
             <button
@@ -844,10 +845,27 @@ export default function GroupChatPage() {
             </div>
           </div>
         </div>
-        <div className="flex-1 flex items-center justify-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-600"></div>
+        {/* Messages skeleton - WhatsApp style */}
+        <div className="flex-1 overflow-hidden p-4 space-y-3">
+          {[false, false, true, false, true, true, false, true].map((isOwn, i) => (
+            <div key={i} className={`flex gap-2 ${isOwn ? "justify-end" : "justify-start"}`} style={{ animationDelay: `${i * 50}ms` }}>
+              {!isOwn && <div className="w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-700 animate-pulse flex-shrink-0" />}
+              <div className={`rounded-2xl p-3 max-w-[70%] animate-pulse ${isOwn ? "bg-blue-100 dark:bg-blue-900/30" : "bg-white dark:bg-gray-800"}`}>
+                {!isOwn && <div className="h-3 w-16 bg-gray-300 dark:bg-gray-600 rounded mb-2" />}
+                <div className="h-3 w-36 bg-gray-300 dark:bg-gray-600 rounded mb-1" />
+                <div className="h-3 w-24 bg-gray-300 dark:bg-gray-600 rounded" />
+                <div className="h-2 w-10 bg-gray-300 dark:bg-gray-600 rounded mt-2 ml-auto" />
+              </div>
+            </div>
+          ))}
+        </div>
+        {/* Input skeleton */}
+        <div className="p-3 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700">
+          <div className="h-12 bg-gray-100 dark:bg-gray-700 rounded-full animate-pulse" />
         </div>
       </div>
+    );
+  }
     );
   }
 

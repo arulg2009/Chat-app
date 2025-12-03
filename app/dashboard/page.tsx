@@ -2,7 +2,7 @@
 
 import { useSession, signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import Link from "next/link";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,7 @@ import {
   Hash, Lock, Globe, MoreVertical, Trash2, Shield
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { ChatListSkeleton, GroupCardSkeleton, UserListSkeleton } from "@/components/ui/skeleton";
 
 interface Conversation {
   id: string;
@@ -383,7 +384,7 @@ export default function DashboardPage() {
   if (status === "loading" || loading) {
     return (
       <div className="h-screen flex flex-col bg-background">
-        {/* Skeleton Header */}
+        {/* Header */}
         <header className="h-14 sm:h-16 px-3 sm:px-4 pt-2 sm:pt-0 flex items-center justify-between border-b bg-card shrink-0">
           <div className="flex items-center gap-2 sm:gap-3">
             <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-lg gradient-primary flex items-center justify-center">
@@ -393,27 +394,19 @@ export default function DashboardPage() {
           </div>
           <div className="w-10 h-10 rounded-full bg-muted animate-pulse" />
         </header>
-        {/* Skeleton Content */}
-        <div className="flex-1 overflow-hidden flex flex-col">
-          <div className="px-3 sm:px-4 py-2 border-b bg-card space-y-2">
-            <div className="h-10 bg-muted rounded animate-pulse" />
-            <div className="flex gap-2">
-              {[1, 2, 3, 4].map(i => (
-                <div key={i} className="h-8 w-20 bg-muted rounded animate-pulse" />
-              ))}
-            </div>
-          </div>
-          <div className="flex-1 p-3 space-y-3">
-            {[1, 2, 3, 4, 5].map(i => (
-              <div key={i} className="flex items-center gap-3 p-3 rounded-lg bg-card">
-                <div className="w-12 h-12 rounded-full bg-muted animate-pulse" />
-                <div className="flex-1 space-y-2">
-                  <div className="w-32 h-4 bg-muted rounded animate-pulse" />
-                  <div className="w-48 h-3 bg-muted rounded animate-pulse" />
-                </div>
-              </div>
-            ))}
-          </div>
+        {/* Search skeleton */}
+        <div className="px-3 sm:px-4 py-3 border-b bg-card">
+          <div className="h-11 sm:h-12 bg-muted/50 rounded-lg animate-pulse" />
+        </div>
+        {/* Tabs skeleton */}
+        <div className="flex border-b bg-card px-2 sm:px-4 gap-2 py-2">
+          {[1, 2, 3, 4].map(i => (
+            <div key={i} className="h-8 w-20 bg-muted rounded-lg animate-pulse" style={{ animationDelay: `${i * 50}ms` }} />
+          ))}
+        </div>
+        {/* Chat list skeleton */}
+        <div className="flex-1 overflow-hidden">
+          <ChatListSkeleton count={8} />
         </div>
       </div>
     );
