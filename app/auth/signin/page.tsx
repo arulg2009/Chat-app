@@ -100,9 +100,9 @@ function SignInForm() {
         }
         setIsLoading(false);
       } else if (result?.ok) {
-        // Success - navigate immediately for speed
-        router.push(callbackUrl);
-        router.refresh();
+        // Success - use window.location for full page reload to ensure cookies are properly set
+        // This is more reliable on Vercel than router.push which can cause redirect issues
+        window.location.href = callbackUrl;
         // Keep isLoading true while redirecting
         return;
       } else {
