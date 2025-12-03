@@ -866,8 +866,6 @@ export default function GroupChatPage() {
       </div>
     );
   }
-    );
-  }
 
   if (status === "unauthenticated" || !session?.user?.id) return null;
 
