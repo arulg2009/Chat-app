@@ -3,10 +3,19 @@
 import { useOnlineStatus } from "@/lib/use-online-status";
 import { WifiOff, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useState, useEffect } from "react";
 
 export function OfflineIndicator() {
   const { isOnline, isReconnecting } = useOnlineStatus();
+  const [mounted, setMounted] = useState(false);
 
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Don't render anything until mounted to avoid hydration mismatch
+  if (!mounted) return null;
+  
   if (isOnline && !isReconnecting) return null;
 
   return (

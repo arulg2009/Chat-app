@@ -17,16 +17,27 @@ interface PendingAction {
 }
 
 export function useOnlineStatus() {
+  // Always start with true on server to avoid hydration mismatch
   const [status, setStatus] = useState<NetworkStatus>({
-    isOnline: typeof navigator !== 'undefined' ? navigator.onLine : true,
+    isOnline: true,
     isReconnecting: false,
     lastOnline: null,
   });
+  
+  const [mounted, setMounted] = useState(false);
 
   const [pendingActions, setPendingActions] = useState<PendingAction[]>([]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
+
+    // Mark as mounted and set initial status
+    setMounted(true);
+    setStatus(prev => ({
+      ...prev,
+      isOnline: navigator.onLine,
+      lastOnline: navigator.onLine ? new Date() : null,
+    }));
 
     // Initialize offline storage
     offlineStorage.init().catch(console.error);
@@ -52,13 +63,6 @@ export function useOnlineStatus() {
         isReconnecting: false,
       }));
     };
-
-    // Set initial status
-    setStatus(prev => ({
-      ...prev,
-      isOnline: navigator.onLine,
-      lastOnline: navigator.onLine ? new Date() : null,
-    }));
 
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
