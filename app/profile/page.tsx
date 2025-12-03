@@ -57,15 +57,6 @@ export default function ProfilePage() {
   const [successMessage, setSuccessMessage] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => { if (status === "unauthenticated") router.push("/auth/signin"); }, [status, router]);
-  useEffect(() => { if (status === "authenticated") fetchProfile(); }, [status]);
-
-  // Fast perceived performance: show profile skeleton while loading
-  // Use PageLoadingSkeleton component for consistent loading experience
-  if (loading) {
-    return <PageLoadingSkeleton type="profile" />;
-  }
-
   const fetchProfile = async () => {
     try {
       const res = await fetch("/api/profile");
@@ -79,6 +70,9 @@ export default function ProfilePage() {
     } catch (e) { console.error(e); }
     finally { setLoading(false); }
   };
+
+  useEffect(() => { if (status === "unauthenticated") router.push("/auth/signin"); }, [status, router]);
+  useEffect(() => { if (status === "authenticated") fetchProfile(); }, [status]);
 
   const handleSaveProfile = async () => {
     // Optimistic update - show success immediately
@@ -203,6 +197,11 @@ export default function ProfilePage() {
   };
 
   const getInitials = (name: string | null) => name ? name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2) : "U";
+
+  // Show loading skeleton while fetching profile data
+  if (loading) {
+    return <PageLoadingSkeleton type="profile" />;
+  }
 
   if (!session) return null;
 
