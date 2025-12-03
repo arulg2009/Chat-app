@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
+import { PageLoadingSkeleton } from "@/components/ui/skeleton";
 
 interface ProfileData {
   id: string; name: string | null; realName: string | null; email: string | null;
@@ -58,6 +59,11 @@ export default function ProfilePage() {
 
   useEffect(() => { if (status === "unauthenticated") router.push("/auth/signin"); }, [status, router]);
   useEffect(() => { if (status === "authenticated") fetchProfile(); }, [status]);
+
+  // Fast perceived performance: show profile skeleton while loading
+  if (status === "loading" || loading) {
+    return <PageLoadingSkeleton type="profile" />;
+  }
 
   const fetchProfile = async () => {
     try {
