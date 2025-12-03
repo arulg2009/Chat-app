@@ -825,15 +825,35 @@ export default function GroupChatPage() {
     .filter((m) => m.type === "image" && !m.isDeleted)
     .map((m) => ({ url: m.content, id: m.id, sender: m.sender })) || [];
 
-  if (status === "loading" || loading) {
+  // Show loading skeleton immediately for fast perceived performance
+  if (loading || !group) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-600"></div>
+      <div className="h-screen flex flex-col bg-gray-100 dark:bg-gray-900">
+        <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-3 sm:px-4 py-3 sm:py-4 pt-4 sm:pt-4">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <button
+              onClick={() => router.back()}
+              className="p-2.5 sm:p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg touch-manipulation"
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </button>
+            <div className="w-11 h-11 sm:w-10 sm:h-10 rounded-full bg-muted animate-pulse" />
+            <div className="flex-1">
+              <div className="w-32 h-4 bg-muted rounded animate-pulse" />
+              <div className="w-20 h-3 bg-muted rounded animate-pulse mt-1" />
+            </div>
+          </div>
+        </div>
+        <div className="flex-1 flex items-center justify-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-600"></div>
+        </div>
       </div>
     );
   }
 
-  if (!session || !group) return null;
+  if (status === "unauthenticated" || !session?.user?.id) return null;
+
+  const currentUserId = session.user.id;
 
   return (
     <div className="h-screen flex bg-gray-100 dark:bg-gray-900">

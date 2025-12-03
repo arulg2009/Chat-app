@@ -49,31 +49,21 @@ function checkRateLimit(ip: string): boolean {
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  const ip = request.ip || request.headers.get('x-forwarded-for') || 'unknown';
 
-  // Skip middleware for NextAuth API routes to prevent interference with auth flow
-  if (pathname.startsWith('/api/auth')) {
+  // Fast path: Skip middleware entirely for API routes and auth routes
+  if (pathname.startsWith('/api/')) {
     return NextResponse.next();
   }
 
-  // Rate limiting for API routes
-  if (pathname.startsWith('/api/')) {
-    if (!checkRateLimit(ip)) {
-      return new NextResponse(
-        JSON.stringify({ error: 'Too many requests. Please try again later.' }),
-        {
-          status: 429,
-          headers: { 'Content-Type': 'application/json', ...securityHeaders },
-        }
-      );
-    }
+  // Only check auth for protected paths - otherwise return immediately
+  if (!isProtectedPath(pathname) && !isAuthPath(pathname)) {
+    return NextResponse.next();
   }
 
   // Check authentication using NextAuth JWT token
   const token = await getToken({ 
     req: request, 
     secret: process.env.NEXTAUTH_SECRET,
-    cookieName: process.env.NODE_ENV === 'production' ? '__Secure-next-auth.session-token' : 'next-auth.session-token',
   });
 
   // Redirect unauthenticated users from protected routes to signin
@@ -88,35 +78,19 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL('/dashboard', request.url));
   }
 
-  // Create response with security headers
-  const response = NextResponse.next();
-  
-  // Add security headers to all responses
-  Object.entries(securityHeaders).forEach(([key, value]) => {
-    response.headers.set(key, value);
-  });
-
-  // Add CSP header
-  response.headers.set(
-    'Content-Security-Policy',
-    [
-      "default-src 'self'",
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://vercel.live https://*.vercel.live https://*.vercel.app",
-      "script-src-elem 'self' 'unsafe-inline' https://vercel.live https://*.vercel.live https://*.vercel.app",
-      "style-src 'self' 'unsafe-inline'",
-      "img-src 'self' data: blob: https: http:",
-      "font-src 'self' data:",
-      "connect-src 'self' https: wss: ws:",
-      "frame-src 'self' https://vercel.live https://*.vercel.live",
-    ].join('; ')
-  );
-
-  return response;
+  // Return immediately - no heavy processing
+  return NextResponse.next();
 }
 
 export const config = {
   matcher: [
-    // Match all paths except static files and _next
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    // Only match pages that need auth checking
+    '/dashboard/:path*',
+    '/conversations/:path*',
+    '/groups/:path*',
+    '/profile/:path*',
+    '/admin/:path*',
+    '/auth/signin',
+    '/auth/register',
   ],
 };

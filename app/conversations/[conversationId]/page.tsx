@@ -410,19 +410,38 @@ export default function ConversationPage() {
       .map((m) => ({ url: m.content, caption: m.metadata?.filename }));
   };
 
-  if (status === "loading" || loading) {
+  // Show loading skeleton immediately for fast perceived performance
+  if (loading || !conversation) {
     return (
-      <div className="h-screen flex items-center justify-center bg-background">
-        <Loader2 className="w-6 h-6 animate-spin text-primary" />
+      <div className="h-screen flex flex-col bg-background">
+        <header className="h-16 sm:h-14 px-2 sm:px-4 pt-2 sm:pt-0 flex items-center gap-2 sm:gap-3 border-b bg-card shrink-0">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => router.back()}
+            className="shrink-0 h-11 w-11 touch-manipulation"
+          >
+            <ArrowLeft className="w-6 h-6 sm:w-5 sm:h-5" />
+          </Button>
+          <div className="w-11 h-11 sm:w-10 sm:h-10 rounded-full bg-muted animate-pulse" />
+          <div className="flex-1">
+            <div className="w-24 h-4 bg-muted rounded animate-pulse" />
+            <div className="w-16 h-3 bg-muted rounded animate-pulse mt-1" />
+          </div>
+        </header>
+        <div className="flex-1 flex items-center justify-center">
+          <Loader2 className="w-6 h-6 animate-spin text-primary" />
+        </div>
       </div>
     );
   }
 
-  if (!session || !conversation) {
+  if (status === "unauthenticated" || !session?.user?.id) {
     return null;
   }
 
   const otherUser = getOtherUser();
+  const currentUserId = session.user.id;
 
   return (
     <div className="h-screen flex flex-col bg-background">

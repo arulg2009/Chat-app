@@ -166,7 +166,12 @@ export async function GET(
       readBy: [],
     }));
 
-    return NextResponse.json({ messages: transformedMessages.reverse() });
+    const response = NextResponse.json({ messages: transformedMessages.reverse() });
+    
+    // Cache for 1 second, stale-while-revalidate for smooth polling
+    response.headers.set('Cache-Control', 'private, max-age=1, stale-while-revalidate=2');
+    
+    return response;
   } catch (error) {
     console.error("Error fetching group messages:", error);
     return NextResponse.json(

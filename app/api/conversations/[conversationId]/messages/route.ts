@@ -114,12 +114,17 @@ export async function GET(
       };
     });
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       messages: transformedMessages.reverse(),
       conversation: includeConversation ? conversation : undefined,
       nextCursor,
       hasMore,
     });
+    
+    // Cache for 1 second, stale-while-revalidate for smooth polling
+    response.headers.set('Cache-Control', 'private, max-age=1, stale-while-revalidate=2');
+    
+    return response;
   } catch (error) {
     console.error("Error fetching messages:", error);
     return NextResponse.json(
