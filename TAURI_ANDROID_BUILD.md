@@ -1,140 +1,182 @@
 # ChatApp - Tauri Android Build Guide
 
-This guide explains how to build the ChatApp Android APK using Tauri on your Windows machine.
+Build a native Android app with offline support using Tauri.
 
-## Prerequisites
+## Quick Start (Windows)
 
-### 1. Install Rust
-Download and install Rust from: https://rustup.rs/
-- Run the installer and follow the prompts
-- Restart your terminal after installation
+### Step 1: Install Prerequisites
 
-### 2. Install Android Studio
-Download from: https://developer.android.com/studio
-- Install Android Studio
-- During setup, install the Android SDK
-- Go to SDK Manager → SDK Tools and install:
-  - Android SDK Build-Tools
-  - NDK (Side by side)
-  - Android SDK Command-line Tools
+1. **Install Rust**
+   - Go to https://rustup.rs/
+   - Download and run `rustup-init.exe`
+   - Choose option 1 (default installation)
+   - Restart your terminal after installation
 
-### 3. Set Environment Variables
-Add these to your system environment variables:
+2. **Install Node.js**
+   - Go to https://nodejs.org/
+   - Download the LTS version
+   - Run the installer
 
-```
-ANDROID_HOME = C:\Users\<YourUsername>\AppData\Local\Android\Sdk
-NDK_HOME = C:\Users\<YourUsername>\AppData\Local\Android\Sdk\ndk\<version>
-JAVA_HOME = C:\Program Files\Android\Android Studio\jbr
-```
+3. **Install Android Studio**
+   - Go to https://developer.android.com/studio
+   - Download and install Android Studio
+   - Open Android Studio, go to **Settings** → **Languages & Frameworks** → **Android SDK**
+   - In **SDK Tools** tab, check and install:
+     - ✅ Android SDK Build-Tools
+     - ✅ NDK (Side by side)
+     - ✅ Android SDK Command-line Tools
+     - ✅ Android SDK Platform-Tools
 
-Add to PATH:
-```
-%ANDROID_HOME%\platform-tools
-%ANDROID_HOME%\cmdline-tools\latest\bin
-```
+### Step 2: Set Environment Variables
 
-### 4. Install Node.js
-Download from: https://nodejs.org/ (LTS version recommended)
+1. Press `Win + R`, type `sysdm.cpl`, press Enter
+2. Go to **Advanced** tab → **Environment Variables**
+3. Under **System Variables**, click **New** and add:
 
-## Building the APK
+| Variable Name | Variable Value |
+|--------------|----------------|
+| `ANDROID_HOME` | `C:\Users\<YourUsername>\AppData\Local\Android\Sdk` |
+| `NDK_HOME` | `C:\Users\<YourUsername>\AppData\Local\Android\Sdk\ndk\<version>` |
+| `JAVA_HOME` | `C:\Program Files\Android\Android Studio\jbr` |
 
-### Quick Build (Windows)
-1. Extract `Chat-app-main.zip` to a folder
-2. Open Command Prompt in that folder
-3. Run: `build-android.bat`
+4. Edit the `Path` variable and add:
+   - `%ANDROID_HOME%\platform-tools`
+   - `%ANDROID_HOME%\cmdline-tools\latest\bin`
 
-### Manual Build Steps
+### Step 3: Build the APK
 
-1. **Install dependencies:**
-   ```bash
-   npm install
+1. Extract `Chat-app-main.zip` to a folder (e.g., `C:\Users\User\Downloads\Chat-app-main`)
+2. Open Command Prompt or PowerShell in that folder
+3. Run the build script:
+   ```cmd
+   build-android.bat
    ```
 
-2. **Add Rust Android targets:**
-   ```bash
-   rustup target add aarch64-linux-android armv7-linux-androideabi i686-linux-android x86_64-linux-android
+The script will:
+- Install npm dependencies
+- Add Rust Android targets
+- Build the Next.js app
+- Initialize Tauri Android
+- Build the APK
+
+### Step 4: Install on Your Phone
+
+1. Find the APK at:
+   ```
+   src-tauri\gen\android\app\build\outputs\apk\universal\release\app-universal-release.apk
    ```
 
-3. **Initialize Tauri Android (if not done):**
-   ```bash
-   npx tauri android init
-   ```
+2. Transfer to your Android phone via:
+   - USB cable
+   - Google Drive
+   - Email attachment
+   - Direct ADB install: `adb install app-universal-release.apk`
 
-4. **Build the APK:**
-   ```bash
-   npx tauri android build
-   ```
+3. On your phone:
+   - Go to **Settings** → **Security** → Enable **Install from Unknown Sources**
+   - Open the APK file and tap **Install**
 
-## APK Location
+## Manual Build Commands
 
-After successful build, find your APK at:
+If you prefer running commands manually:
+
+```bash
+# Install dependencies
+npm install
+
+# Add Android targets for Rust
+rustup target add aarch64-linux-android armv7-linux-androideabi i686-linux-android x86_64-linux-android
+
+# Build Next.js
+npm run build
+
+# Initialize Tauri Android (first time only)
+npx tauri android init
+
+# Build APK
+npx tauri android build --apk
+
+# Or build AAB for Play Store
+npx tauri android build --aab
 ```
-src-tauri\gen\android\app\build\outputs\apk\universal\release\app-universal-release.apk
-```
 
-Or for debug builds:
-```
-src-tauri\gen\android\app\build\outputs\apk\universal\debug\app-universal-debug.apk
-```
-
-## Features
+## App Features
 
 ### Offline Support
-The app includes offline capabilities:
-- **Message Queue**: Messages typed while offline are saved and sent when back online
-- **Local Cache**: Conversations and messages are cached for offline viewing
-- **Sync Indicator**: Shows reconnection status when coming back online
+- **Message Queue**: Messages typed offline are saved locally and sent when back online
+- **Local Cache**: Conversations and messages cached in IndexedDB
+- **Sync Status**: Visual indicator shows connection status
+- **Auto-Sync**: Pending messages sync automatically when reconnected
 
 ### Online Features
 - Real-time messaging
-- Group chats
-- Photo sharing
+- Group chats with admin controls
+- Photo and file sharing
 - Voice messages
 - Message reactions
-- Read receipts
+- Read receipts (WhatsApp-style ticks)
+- Message forwarding
+- Reply to specific messages
 
 ## Troubleshooting
 
-### "Rust not found"
-- Install Rust from https://rustup.rs/
-- Restart your terminal
+### "Rust not found" or "'cargo' not recognized"
+- Restart your terminal after installing Rust
+- Run `rustup --version` to verify installation
 
-### "Android SDK not found"
-- Install Android Studio
-- Set ANDROID_HOME environment variable
-- Make sure SDK Tools are installed
+### "ANDROID_HOME not set"
+- Set the environment variable as described above
+- Default location: `C:\Users\<YourUsername>\AppData\Local\Android\Sdk`
 
 ### "NDK not found"
 - Open Android Studio → SDK Manager → SDK Tools
-- Check "NDK (Side by side)" and install
+- Install "NDK (Side by side)"
+- Set NDK_HOME to the NDK folder (e.g., `...\ndk\25.2.9519653`)
 
-### Build fails with Gradle errors
-- Make sure JAVA_HOME points to Android Studio's JDK:
+### Build fails with Java errors
+- Ensure JAVA_HOME points to Android Studio's JDK:
   `C:\Program Files\Android\Android Studio\jbr`
 
-### "Permission denied" on gradlew
-- Run: `chmod +x src-tauri/gen/android/gradlew` (on Linux/Mac)
-- Or use Git Bash on Windows
+### "Command failed with exit code"
+- Make sure all prerequisites are installed
+- Try running as Administrator
+- Check if antivirus is blocking the build
 
-## Development
-
-### Run in development mode:
-```bash
-npm run tauri:android:dev
-```
-
-### Build release APK:
-```bash
-npm run tauri:android:build
-```
+### App crashes on phone
+- Check minimum Android version (Android 7.0 / API 24+)
+- Try the debug APK first for better error messages
 
 ## App Information
 
-- **App Name**: ChatApp
-- **Package ID**: com.chatapp.mobile
-- **Min Android Version**: Android 7.0 (API 24)
-- **Target Android Version**: Android 14 (API 34)
+| Property | Value |
+|----------|-------|
+| App Name | ChatApp |
+| Package ID | com.chatapp.mobile |
+| Min Android | 7.0 (API 24) |
+| Target Android | 14 (API 34) |
 
-## Support
+## Development Commands
 
-For issues or questions, please open an issue on the GitHub repository.
+```bash
+# Run in development mode (requires USB debugging)
+npm run tauri:android:dev
+
+# Build debug APK
+npx tauri android build --debug
+
+# Build release APK
+npx tauri android build --apk
+
+# Build for Play Store (AAB)
+npx tauri android build --aab
+```
+
+## File Locations
+
+| File | Location |
+|------|----------|
+| Release APK | `src-tauri/gen/android/app/build/outputs/apk/universal/release/` |
+| Debug APK | `src-tauri/gen/android/app/build/outputs/apk/universal/debug/` |
+| AAB (Play Store) | `src-tauri/gen/android/app/build/outputs/bundle/` |
+| Tauri Config | `src-tauri/tauri.conf.json` |
+| Android Project | `src-tauri/gen/android/` |
