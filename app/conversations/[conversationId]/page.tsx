@@ -347,17 +347,42 @@ export default function ConversationPage() {
   };
 
   const handleReaction = async (messageId: string, emoji: string) => {
+    // Optimistic update for instant feedback
+    setConversation(prev => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        messages: prev.messages.map(m => {
+          if (m.id !== messageId) return m;
+          const reactions = m.reactions || [];
+          const existingIdx = reactions.findIndex(r => r.emoji === emoji);
+          if (existingIdx >= 0) {
+            const existing = reactions[existingIdx];
+            if (existing.hasReacted) {
+              if (existing.count === 1) {
+                return { ...m, reactions: reactions.filter((_, i) => i !== existingIdx) };
+              }
+              return { ...m, reactions: reactions.map((r, i) => i === existingIdx ? { ...r, count: r.count - 1, hasReacted: false } : r) };
+            } else {
+              return { ...m, reactions: reactions.map((r, i) => i === existingIdx ? { ...r, count: r.count + 1, hasReacted: true } : r) };
+            }
+          } else {
+            return { ...m, reactions: [...reactions, { emoji, count: 1, users: [], hasReacted: true }] };
+          }
+        }),
+      };
+    });
+    setActiveReactionPicker(null);
+    
     try {
       await fetch(`/api/conversations/${conversationId}/messages/${messageId}/reactions`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ emoji }),
       });
-      await fetchConversation();
     } catch (err) {
       console.error("Error adding reaction:", err);
     }
-    setActiveReactionPicker(null);
   };
 
   const copyMessage = (content: string) => {

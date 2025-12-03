@@ -58,7 +58,9 @@ export async function GET(request: NextRequest) {
       take: 50,
     });
 
-    return NextResponse.json(requests);
+    const response = NextResponse.json(requests);
+    response.headers.set('Cache-Control', 's-maxage=3, stale-while-revalidate=10');
+    return response;
   } catch (error) {
     console.error("Error fetching chat requests:", error);
     return NextResponse.json({ error: "Failed to fetch requests" }, { status: 500 });

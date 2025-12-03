@@ -58,8 +58,10 @@ export async function GET(request: NextRequest) {
       take: 50,
     });
 
-    // Return directly - already in correct format
-    return NextResponse.json(conversations);
+    // Return with cache headers for faster subsequent loads
+    const response = NextResponse.json(conversations);
+    response.headers.set('Cache-Control', 's-maxage=5, stale-while-revalidate=10');
+    return response;
   } catch (error) {
     console.error("Error fetching conversations:", error);
     return NextResponse.json(

@@ -472,43 +472,63 @@ export default function GroupChatPage() {
   };
 
   const handleReaction = async (messageId: string, emoji: string) => {
+    // Optimistic update for instant feedback
+    setGroup(prev => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        messages: prev.messages.map(m => {
+          if (m.id !== messageId) return m;
+          const reactions = m.reactions || [];
+          const existingIdx = reactions.findIndex(r => r.emoji === emoji);
+          if (existingIdx >= 0) {
+            const existing = reactions[existingIdx];
+            if (existing.hasReacted) {
+              if (existing.count === 1) {
+                return { ...m, reactions: reactions.filter((_, i) => i !== existingIdx) };
+              }
+              return { ...m, reactions: reactions.map((r, i) => i === existingIdx ? { ...r, count: r.count - 1, hasReacted: false } : r) };
+            } else {
+              return { ...m, reactions: reactions.map((r, i) => i === existingIdx ? { ...r, count: r.count + 1, hasReacted: true } : r) };
+            }
+          } else {
+            return { ...m, reactions: [...reactions, { emoji, count: 1, users: [], hasReacted: true }] };
+          }
+        }),
+      };
+    });
+    setActiveReactionPicker(null);
+    
     try {
-      const res = await fetch(`/api/groups/${groupId}/messages/${messageId}/reactions`, {
+      await fetch(`/api/groups/${groupId}/messages/${messageId}/reactions`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ emoji }),
       });
-
-      if (res.ok) {
-        // Refresh group to get updated reactions
-        await fetchGroup();
-      }
     } catch (err) {
       console.error("Error adding reaction:", err);
     }
-    setActiveReactionPicker(null);
   };
 
   const handleDeleteMessage = async (messageId: string) => {
     if (!confirm("Delete this message?")) return;
 
+    // Optimistic update - instant delete
+    setGroup((prev) =>
+      prev
+        ? {
+            ...prev,
+            messages: prev.messages.map((m) =>
+              m.id === messageId ? { ...m, isDeleted: true } : m
+            ),
+          }
+        : prev
+    );
+
     try {
-      const res = await fetch(`/api/groups/${groupId}/messages/${messageId}`, {
+      await fetch(`/api/groups/${groupId}/messages/${messageId}`, {
         method: "DELETE",
       });
-
-      if (res.ok) {
-        setGroup((prev) =>
-          prev
-            ? {
-                ...prev,
-                messages: prev.messages.map((m) =>
-                  m.id === messageId ? { ...m, isDeleted: true } : m
-                ),
-              }
-            : prev
-        );
-      }
     } catch (err) {
       console.error("Error deleting message:", err);
     }

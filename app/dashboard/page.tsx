@@ -194,24 +194,35 @@ export default function DashboardPage() {
   };
 
   const sendChatRequest = async (userId: string) => {
-    // Optimistic update
+    // Optimistic update - instant feedback
     setSentRequests(prev => {
       const newSet = new Set(prev);
       newSet.add(userId);
       return newSet;
     });
     setSendingRequest(userId);
+    
     try {
       const res = await fetch("/api/chat-requests", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ receiverId: userId }),
       });
-      if (res.ok) {
-        setSentRequests(prev => new Set(prev).add(userId));
-        fetchData(); // Refresh to get the new sent request
+      if (!res.ok) {
+        // Rollback on error
+        setSentRequests(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(userId);
+          return newSet;
+        });
       }
     } catch (e) {
+      // Rollback on error
+      setSentRequests(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(userId);
+        return newSet;
+      });
       console.error("Error sending request:", e);
     } finally {
       setSendingRequest(null);
@@ -219,19 +230,28 @@ export default function DashboardPage() {
   };
 
   const cancelSentRequest = async (requestId: string, receiverId: string) => {
+    // Optimistic update - instant removal
+    const oldSentList = [...sentRequestsList];
+    setSentRequestsList(prev => prev.filter(r => r.id !== requestId));
+    setSentRequests(prev => {
+      const newSet = new Set(prev);
+      newSet.delete(receiverId);
+      return newSet;
+    });
+    
     try {
       const res = await fetch(`/api/chat-requests/${requestId}`, {
         method: "DELETE",
       });
-      if (res.ok) {
-        setSentRequestsList(prev => prev.filter(r => r.id !== requestId));
-        setSentRequests(prev => {
-          const newSet = new Set(prev);
-          newSet.delete(receiverId);
-          return newSet;
-        });
+      if (!res.ok) {
+        // Rollback on error
+        setSentRequestsList(oldSentList);
+        setSentRequests(prev => new Set(prev).add(receiverId));
       }
     } catch (e) {
+      // Rollback on error
+      setSentRequestsList(oldSentList);
+      setSentRequests(prev => new Set(prev).add(receiverId));
       console.error("Error canceling request:", e);
     }
   };

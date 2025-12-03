@@ -74,17 +74,31 @@ export default function ProfilePage() {
   };
 
   const handleSaveProfile = async () => {
+    // Optimistic update - show success immediately
+    const oldProfile = profile;
+    setProfile(prev => prev ? { ...prev, ...formData } : prev);
+    setSuccessMessage("Saving...");
     setSaving(true);
+    
     try {
       const res = await fetch("/api/profile", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(formData) });
       if (res.ok) { 
         setProfile(await res.json()); 
-        // Update session if name changed
-        await updateSession();
+        updateSession(); // Don't await - run in background
         setSuccessMessage("Saved!"); 
-        setTimeout(() => setSuccessMessage(""), 2000); 
+        setTimeout(() => setSuccessMessage(""), 1500); 
+      } else {
+        // Rollback on error
+        setProfile(oldProfile);
+        setSuccessMessage("Error saving");
+        setTimeout(() => setSuccessMessage(""), 2000);
       }
-    } catch (e) { console.error(e); }
+    } catch (e) { 
+      setProfile(oldProfile);
+      setSuccessMessage("Error saving");
+      setTimeout(() => setSuccessMessage(""), 2000);
+      console.error(e); 
+    }
     finally { setSaving(false); }
   };
 
@@ -98,7 +112,13 @@ export default function ProfilePage() {
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !file.type.startsWith("image/") || file.size > 10 * 1024 * 1024) return;
+    
+    // Show instant preview
+    const previewUrl = URL.createObjectURL(file);
+    const oldAvatarUrl = avatarUrl;
+    setAvatarUrl(previewUrl);
     setUploadingAvatar(true);
+    
     try {
       const fd = new FormData(); fd.append("file", file); fd.append("type", "avatar");
       const res = await fetch("/api/upload", { method: "POST", body: fd });
@@ -106,22 +126,47 @@ export default function ProfilePage() {
         const { url } = await res.json();
         const updateRes = await fetch("/api/profile", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ image: url }) });
         if (updateRes.ok) { 
-          setAvatarUrl(url); 
-          // Update the session to persist the new avatar across the app
-          await updateSession();
+          setAvatarUrl(url);
+          URL.revokeObjectURL(previewUrl);
+          updateSession(); // Don't await - run in background
           setSuccessMessage("Avatar updated!"); 
-          setTimeout(() => setSuccessMessage(""), 2000); 
+          setTimeout(() => setSuccessMessage(""), 1500); 
+        } else {
+          setAvatarUrl(oldAvatarUrl);
+          URL.revokeObjectURL(previewUrl);
         }
+      } else {
+        setAvatarUrl(oldAvatarUrl);
+        URL.revokeObjectURL(previewUrl);
       }
-    } catch (e) { console.error(e); }
+    } catch (e) { 
+      setAvatarUrl(oldAvatarUrl);
+      URL.revokeObjectURL(previewUrl);
+      console.error(e); 
+    }
     finally { setUploadingAvatar(false); }
   };
 
   const handleStatusChange = async (newStatus: string) => {
+    // Optimistic update - instant feedback
+    const oldStatus = currentStatus;
+    setCurrentStatus(newStatus);
+    setProfile(prev => prev ? { ...prev, status: newStatus } : prev);
+    setShowStatusDropdown(false);
+    
     try {
       const res = await fetch("/api/profile/status", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: newStatus }) });
-      if (res.ok) { setCurrentStatus(newStatus); setProfile(prev => prev ? { ...prev, status: newStatus } : prev); setShowStatusDropdown(false); }
-    } catch (e) { console.error(e); }
+      if (!res.ok) {
+        // Rollback on error
+        setCurrentStatus(oldStatus);
+        setProfile(prev => prev ? { ...prev, status: oldStatus } : prev);
+      }
+    } catch (e) {
+      // Rollback on error
+      setCurrentStatus(oldStatus);
+      setProfile(prev => prev ? { ...prev, status: oldStatus } : prev);
+      console.error(e);
+    }
   };
 
   const handlePasswordChange = async () => {
