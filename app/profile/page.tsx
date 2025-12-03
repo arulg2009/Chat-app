@@ -61,7 +61,8 @@ export default function ProfilePage() {
   useEffect(() => { if (status === "authenticated") fetchProfile(); }, [status]);
 
   // Fast perceived performance: show profile skeleton while loading
-  if (status === "loading" || loading) {
+  // Use PageLoadingSkeleton component for consistent loading experience
+  if (loading) {
     return <PageLoadingSkeleton type="profile" />;
   }
 
@@ -203,35 +204,6 @@ export default function ProfilePage() {
 
   const getInitials = (name: string | null) => name ? name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2) : "U";
 
-  if (status === "loading" || loading) return (
-    <div className="min-h-screen bg-background">
-      {/* Header skeleton */}
-      <header className="h-14 sm:h-12 px-3 sm:px-4 pt-2 sm:pt-0 flex items-center gap-3 border-b bg-card sticky top-0 z-10">
-        <div className="w-9 h-9 sm:w-8 sm:h-8 rounded-md bg-muted animate-pulse" />
-        <div className="h-4 w-20 bg-muted rounded animate-pulse" />
-      </header>
-      <div className="max-w-2xl mx-auto px-3 sm:px-4 py-4">
-        {/* Profile card skeleton */}
-        <div className="bg-card rounded-xl p-4 mb-4 shadow-soft animate-pulse">
-          <div className="flex items-center gap-4">
-            <div className="w-20 h-20 rounded-full bg-muted" />
-            <div className="flex-1">
-              <div className="h-5 w-32 bg-muted rounded mb-2" />
-              <div className="h-3 w-40 bg-muted rounded" />
-            </div>
-          </div>
-        </div>
-        {/* Tabs skeleton */}
-        <div className="flex gap-2 mb-4">
-          {[1, 2, 3, 4].map(i => <div key={i} className="h-9 w-24 bg-muted rounded-lg animate-pulse" style={{ animationDelay: `${i * 50}ms` }} />)}
-        </div>
-        {/* Form skeleton */}
-        <div className="bg-card rounded-xl p-4 shadow-soft space-y-4">
-          {[1, 2, 3, 4].map(i => <div key={i} className="h-12 w-full bg-muted rounded-lg animate-pulse" style={{ animationDelay: `${i * 50}ms` }} />)}
-        </div>
-      </div>
-    </div>
-  );
   if (!session) return null;
 
   return (

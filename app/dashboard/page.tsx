@@ -565,6 +565,7 @@ export default function DashboardPage() {
                   <Link
                     key={conv.id}
                     href={`/conversations/${conv.id}`}
+                    prefetch={true}
                     className="flex items-center gap-3 px-3 sm:px-4 py-4 hover:bg-muted/50 active:bg-muted/70 transition-colors touch-manipulation"
                   >
                     <div className="relative flex-shrink-0">
@@ -628,6 +629,7 @@ export default function DashboardPage() {
                   <Link
                     key={group.id}
                     href={`/groups/${group.id}`}
+                    prefetch={true}
                     className="flex items-center gap-3 px-3 sm:px-4 py-4 hover:bg-muted/50 active:bg-muted/70 transition-colors touch-manipulation"
                   >
                     <Avatar className="w-12 h-12 sm:w-14 sm:h-14 flex-shrink-0">
