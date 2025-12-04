@@ -109,12 +109,12 @@ export async function PATCH(
             },
           });
           
-          // Create the conversation users separately
-          await tx.conversationUser.createMany({
-            data: [
-              { userId: chatRequest.senderId, conversationId: conversation.id },
-              { userId: chatRequest.receiverId, conversationId: conversation.id },
-            ],
+          // Create the conversation users separately - only required fields
+          await tx.conversationUser.create({
+            data: { userId: chatRequest.senderId, conversationId: conversation.id },
+          });
+          await tx.conversationUser.create({
+            data: { userId: chatRequest.receiverId, conversationId: conversation.id },
           });
         });
       }

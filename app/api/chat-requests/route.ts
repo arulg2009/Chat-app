@@ -245,11 +245,11 @@ export async function PATCH(request: NextRequest) {
           },
         });
         
-        await prisma.conversationUser.createMany({
-          data: [
-            { userId: session.user.id, conversationId: conversation.id },
-            { userId: chatRequest.senderId, conversationId: conversation.id },
-          ],
+        await prisma.conversationUser.create({
+          data: { userId: session.user.id, conversationId: conversation.id },
+        });
+        await prisma.conversationUser.create({
+          data: { userId: chatRequest.senderId, conversationId: conversation.id },
         });
       }
     }
