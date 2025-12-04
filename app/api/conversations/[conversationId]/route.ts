@@ -46,7 +46,10 @@ export async function GET(
       return NextResponse.json({ error: "Conversation not found" }, { status: 404 });
     }
 
-    return NextResponse.json(conversation);
+    const response = NextResponse.json(conversation);
+    response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate');
+    response.headers.set('Pragma', 'no-cache');
+    return response;
   } catch (error) {
     console.error("Error fetching conversation:", error);
     return NextResponse.json({ error: "Failed to fetch conversation" }, { status: 500 });

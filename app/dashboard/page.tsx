@@ -206,13 +206,19 @@ export default function DashboardPage() {
 
   const fetchData = async () => {
     try {
+      // Add cache-busting headers to prevent stale user data
+      const fetchOptions = {
+        cache: 'no-store' as RequestCache,
+        headers: { 'Cache-Control': 'no-cache' },
+      };
+      
       const [convRes, groupsRes, requestsRes, usersRes, sentReqRes, callsRes] = await Promise.all([
-        fetch("/api/conversations"),
-        fetch("/api/groups"),
-        fetch("/api/chat-requests?type=received"),
-        fetch("/api/users"),
-        fetch("/api/chat-requests?type=sent"),
-        fetch("/api/calls/history"),
+        fetch("/api/conversations", fetchOptions),
+        fetch("/api/groups", fetchOptions),
+        fetch("/api/chat-requests?type=received", fetchOptions),
+        fetch("/api/users", fetchOptions),
+        fetch("/api/chat-requests?type=sent", fetchOptions),
+        fetch("/api/calls/history", fetchOptions),
       ]);
 
       if (convRes.ok) setConversations(await convRes.json());

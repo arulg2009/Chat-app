@@ -25,8 +25,9 @@ export async function GET() {
     });
 
     const response = NextResponse.json(users);
-    // Add cache headers for faster subsequent loads
-    response.headers.set('Cache-Control', 's-maxage=10, stale-while-revalidate=30');
+    // Disable caching to prevent stale data across users
+    response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate');
+    response.headers.set('Pragma', 'no-cache');
     return response;
   } catch (error) {
     console.error("Error fetching users:", error);

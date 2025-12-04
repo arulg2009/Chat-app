@@ -121,10 +121,10 @@ export async function PATCH(
     }
 
     return NextResponse.json({ success: true });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error updating chat request:", error);
     return NextResponse.json(
-      { error: "Failed to update chat request" },
+      { error: error?.message || "Failed to update chat request" },
       { status: 500 }
     );
   }

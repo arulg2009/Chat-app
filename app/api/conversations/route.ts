@@ -58,9 +58,10 @@ export async function GET(request: NextRequest) {
       take: 50,
     });
 
-    // Return with cache headers for faster subsequent loads
+    // Return with no-cache headers to prevent stale data
     const response = NextResponse.json(conversations);
-    response.headers.set('Cache-Control', 's-maxage=5, stale-while-revalidate=10');
+    response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate');
+    response.headers.set('Pragma', 'no-cache');
     return response;
   } catch (error) {
     console.error("Error fetching conversations:", error);

@@ -205,7 +205,10 @@ export default function ConversationPage() {
 
   const fetchConversation = async () => {
     try {
-      const res = await fetch(`/api/conversations/${conversationId}/messages?includeConversation=true`);
+      const res = await fetch(`/api/conversations/${conversationId}/messages?includeConversation=true`, {
+        cache: 'no-store',
+        headers: { 'Cache-Control': 'no-cache' },
+      });
       if (res.ok) {
         const data = await res.json();
         if (data.conversation) {

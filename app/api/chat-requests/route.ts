@@ -59,7 +59,8 @@ export async function GET(request: NextRequest) {
     });
 
     const response = NextResponse.json(requests);
-    response.headers.set('Cache-Control', 's-maxage=3, stale-while-revalidate=10');
+    response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate');
+    response.headers.set('Pragma', 'no-cache');
     return response;
   } catch (error) {
     console.error("Error fetching chat requests:", error);
@@ -170,9 +171,9 @@ export async function POST(request: NextRequest) {
       request: chatRequest,
       remainingRequests: 2 - requestsThisYear,
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error creating chat request:", error);
-    return NextResponse.json({ error: "Failed to send request" }, { status: 500 });
+    return NextResponse.json({ error: error?.message || "Failed to send request" }, { status: 500 });
   }
 }
 

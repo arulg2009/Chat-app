@@ -51,6 +51,19 @@ export async function GET(
       return NextResponse.json({ error: "Conversation not found" }, { status: 404 });
     }
 
+    // Extra security: Verify user is part of this specific conversation
+    const userInConversation = await prisma.conversationUser.findFirst({
+      where: {
+        conversationId: conversationId,
+        userId: session.user.id,
+      },
+    });
+
+    if (!userInConversation) {
+      console.error(`Security: User ${session.user.id} attempted to access conversation ${conversationId} they're not part of`);
+      return NextResponse.json({ error: "Access denied" }, { status: 403 });
+    }
+
     const messages = await prisma.message.findMany({
       where: { conversationId, isDeleted: false },
       take: limit + 1,
@@ -121,8 +134,9 @@ export async function GET(
       hasMore,
     });
     
-    // Cache for 1 second, stale-while-revalidate for smooth polling
-    response.headers.set('Cache-Control', 'private, max-age=1, stale-while-revalidate=2');
+    // Disable caching to prevent stale data / user data leaks
+    response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate');
+    response.headers.set('Pragma', 'no-cache');
     
     return response;
   } catch (error) {
@@ -172,18 +186,15 @@ export async function POST(
     }
 
     // Verify user is part of the conversation
-    const conversation = await prisma.conversation.findFirst({
+    const conversationUser = await prisma.conversationUser.findFirst({
       where: {
-        id: conversationId,
-        users: {
-          some: {
-            userId: session.user.id,
-          },
-        },
+        conversationId: conversationId,
+        userId: session.user.id,
       },
     });
 
-    if (!conversation) {
+    if (!conversationUser) {
+      console.error(`Security: User ${session.user.id} attempted to send message to conversation ${conversationId} they're not part of`);
       return NextResponse.json(
         { error: "Conversation not found" },
         { status: 404 }
