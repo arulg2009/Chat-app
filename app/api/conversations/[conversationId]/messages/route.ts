@@ -51,15 +51,12 @@ export async function GET(
       return NextResponse.json({ error: "Conversation not found" }, { status: 404 });
     }
 
-    // Extra security: Verify user is part of this specific conversation
-    const userInConversation = await prisma.conversationUser.findFirst({
-      where: {
-        conversationId: conversationId,
-        userId: session.user.id,
-      },
-    });
+    // Extra security: Verify user is part of this specific conversation using raw SQL
+    const userInConversation = await prisma.$queryRaw<{id: string}[]>`
+      SELECT id FROM "ConversationUser" WHERE "conversationId" = ${conversationId} AND "userId" = ${session.user.id} LIMIT 1
+    `;
 
-    if (!userInConversation) {
+    if (!userInConversation || userInConversation.length === 0) {
       console.error(`Security: User ${session.user.id} attempted to access conversation ${conversationId} they're not part of`);
       return NextResponse.json({ error: "Access denied" }, { status: 403 });
     }
@@ -185,15 +182,12 @@ export async function POST(
       );
     }
 
-    // Verify user is part of the conversation
-    const conversationUser = await prisma.conversationUser.findFirst({
-      where: {
-        conversationId: conversationId,
-        userId: session.user.id,
-      },
-    });
+    // Verify user is part of the conversation using raw SQL
+    const conversationUser = await prisma.$queryRaw<{id: string}[]>`
+      SELECT id FROM "ConversationUser" WHERE "conversationId" = ${conversationId} AND "userId" = ${session.user.id} LIMIT 1
+    `;
 
-    if (!conversationUser) {
+    if (!conversationUser || conversationUser.length === 0) {
       console.error(`Security: User ${session.user.id} attempted to send message to conversation ${conversationId} they're not part of`);
       return NextResponse.json(
         { error: "Conversation not found" },
