@@ -118,6 +118,9 @@ model Conversation {
   messages          Message[]
   users             ConversationUser[]
   typingIndicators  TypingIndicator[]
+
+  @@index([updatedAt]) // For sorting conversations by recent activity
+  @@index([isGroup])   // For filtering group vs direct chats
 }
 
 model ConversationUser {
@@ -318,6 +321,7 @@ model GroupMessage {
   @@index([groupId])
   @@index([senderId])
   @@index([createdAt])
+  @@index([groupId, createdAt]) // Composite for fast group message loading
 }
 
 // Group message reactions

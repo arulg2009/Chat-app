@@ -850,7 +850,7 @@ export default function GroupChatPage() {
   // Show loading skeleton immediately for fast perceived performance
   if (loading || !group) {
     return (
-      <div className="h-screen flex flex-col bg-gray-100 dark:bg-gray-900">
+      <div className="h-[100dvh] flex flex-col bg-gray-100 dark:bg-gray-900 overflow-hidden">
         {/* Header skeleton */}
         <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-3 sm:px-4 py-3 sm:py-4 pt-4 sm:pt-4">
           <div className="flex items-center gap-2 sm:gap-3">
@@ -894,9 +894,9 @@ export default function GroupChatPage() {
   const currentUserId = session.user.id;
 
   return (
-    <div className="h-screen flex bg-gray-100 dark:bg-gray-900">
+    <div className="h-[100dvh] flex flex-col sm:flex-row bg-gray-100 dark:bg-gray-900 overflow-hidden">
       {/* Main Chat Area */}
-      <div className="flex-1 flex flex-col relative">
+      <div className="flex-1 flex flex-col min-h-0 relative">
         {/* Search overlay */}
         {showSearch && (
           <MessageSearch
@@ -1027,7 +1027,7 @@ export default function GroupChatPage() {
         </div>
 
         {/* Messages */}
-        <div className="flex-1 overflow-y-auto p-4">
+        <div className="flex-1 overflow-y-auto p-4 min-h-0">
           {!group.isMember ? (
             <div className="h-full flex items-center justify-center">
               <div className="text-center">
@@ -1426,7 +1426,7 @@ export default function GroupChatPage() {
             className="fixed inset-0 bg-black/50 z-40 sm:hidden" 
             onClick={() => setShowMembers(false)} 
           />
-          <div className="fixed inset-y-0 right-0 w-full max-w-sm sm:relative sm:w-80 bg-white dark:bg-gray-800 border-l border-gray-200 dark:border-gray-700 flex flex-col z-50 sm:z-auto safe-area-top safe-area-bottom">
+          <div className="fixed inset-0 sm:inset-auto sm:relative w-full sm:w-80 bg-white dark:bg-gray-800 sm:border-l border-gray-200 dark:border-gray-700 flex flex-col z-50 sm:z-auto">
             <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
               <h3 className="font-semibold text-base">Members ({group._count.members})</h3>
               <button
