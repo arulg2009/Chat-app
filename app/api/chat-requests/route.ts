@@ -238,16 +238,18 @@ export async function PATCH(request: NextRequest) {
       });
 
       if (!existingConversation) {
-        await prisma.conversation.create({
+        // Create conversation and users separately
+        const conversation = await prisma.conversation.create({
           data: {
             isGroup: false,
-            users: {
-              create: [
-                { userId: session.user.id, role: 'member' },
-                { userId: chatRequest.senderId, role: 'member' },
-              ],
-            },
           },
+        });
+        
+        await prisma.conversationUser.createMany({
+          data: [
+            { userId: session.user.id, conversationId: conversation.id },
+            { userId: chatRequest.senderId, conversationId: conversation.id },
+          ],
         });
       }
     }

@@ -135,21 +135,29 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Create new conversation
+    // Create new conversation with separate user creation for reliability
     const conversation = await prisma.conversation.create({
       data: {
         name: isGroup ? name : null,
         isGroup,
-        users: {
-          create: [
-            { userId: session.user.id, role: isGroup ? 'admin' : 'member' },
-            ...participantIds.map((id: string) => ({
-              userId: id,
-              role: 'member',
-            })),
-          ],
-        },
       },
+    });
+    
+    // Create conversation users separately
+    await prisma.conversationUser.createMany({
+      data: [
+        { userId: session.user.id, conversationId: conversation.id, role: isGroup ? 'admin' : 'member' },
+        ...participantIds.map((id: string) => ({
+          userId: id,
+          conversationId: conversation.id,
+          role: 'member',
+        })),
+      ],
+    });
+    
+    // Fetch the complete conversation with users
+    const fullConversation = await prisma.conversation.findUnique({
+      where: { id: conversation.id },
       include: {
         users: {
           include: {
@@ -168,10 +176,10 @@ export async function POST(request: NextRequest) {
     });
 
     return NextResponse.json({
-      id: conversation.id,
-      name: conversation.name,
-      isGroup: conversation.isGroup,
-      participants: conversation.users
+      id: fullConversation!.id,
+      name: fullConversation!.name,
+      isGroup: fullConversation!.isGroup,
+      participants: fullConversation!.users
         .filter((u) => u.userId !== session.user.id)
         .map((u) => u.user),
     });

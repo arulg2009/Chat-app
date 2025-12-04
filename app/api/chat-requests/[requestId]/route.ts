@@ -94,24 +94,29 @@ export async function PATCH(
           data: { status: 'accepted', respondedAt: new Date() },
         });
       } else {
-        // Create conversation in transaction
-        await prisma.$transaction([
-          prisma.chatRequest.update({
+        // Create conversation using interactive transaction for proper sequencing
+        await prisma.$transaction(async (tx) => {
+          // Update the chat request status
+          await tx.chatRequest.update({
             where: { id: requestId },
             data: { status: 'accepted', respondedAt: new Date() },
-          }),
-          prisma.conversation.create({
+          });
+          
+          // Create the conversation
+          const conversation = await tx.conversation.create({
             data: {
               isGroup: false,
-              users: {
-                create: [
-                  { userId: chatRequest.senderId },
-                  { userId: chatRequest.receiverId },
-                ],
-              },
             },
-          }),
-        ]);
+          });
+          
+          // Create the conversation users separately
+          await tx.conversationUser.createMany({
+            data: [
+              { userId: chatRequest.senderId, conversationId: conversation.id },
+              { userId: chatRequest.receiverId, conversationId: conversation.id },
+            ],
+          });
+        });
       }
     } else {
       await prisma.chatRequest.update({
