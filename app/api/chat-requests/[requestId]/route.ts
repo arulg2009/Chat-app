@@ -109,13 +109,9 @@ export async function PATCH(
             },
           });
           
-          // Create the conversation users separately - only required fields
-          await tx.conversationUser.create({
-            data: { userId: chatRequest.senderId, conversationId: conversation.id },
-          });
-          await tx.conversationUser.create({
-            data: { userId: chatRequest.receiverId, conversationId: conversation.id },
-          });
+          // Create the conversation users using raw SQL to avoid schema mismatch
+          await tx.$executeRaw`INSERT INTO "ConversationUser" (id, "userId", "conversationId", "joinedAt", role) VALUES (${crypto.randomUUID()}, ${chatRequest.senderId}, ${conversation.id}, NOW(), 'member')`;
+          await tx.$executeRaw`INSERT INTO "ConversationUser" (id, "userId", "conversationId", "joinedAt", role) VALUES (${crypto.randomUUID()}, ${chatRequest.receiverId}, ${conversation.id}, NOW(), 'member')`;
         });
       }
     } else {

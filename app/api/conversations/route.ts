@@ -143,14 +143,11 @@ export async function POST(request: NextRequest) {
       },
     });
     
-    // Create conversation users separately
-    await prisma.conversationUser.create({
-      data: { userId: session.user.id, conversationId: conversation.id, role: isGroup ? 'admin' : 'member' },
-    });
+    // Create conversation users using raw SQL to avoid schema mismatch
+    const ownerRole = isGroup ? 'admin' : 'member';
+    await prisma.$executeRaw`INSERT INTO "ConversationUser" (id, "userId", "conversationId", "joinedAt", role) VALUES (${crypto.randomUUID()}, ${session.user.id}, ${conversation.id}, NOW(), ${ownerRole})`;
     for (const id of participantIds) {
-      await prisma.conversationUser.create({
-        data: { userId: id, conversationId: conversation.id, role: 'member' },
-      });
+      await prisma.$executeRaw`INSERT INTO "ConversationUser" (id, "userId", "conversationId", "joinedAt", role) VALUES (${crypto.randomUUID()}, ${id}, ${conversation.id}, NOW(), 'member')`;
     }
     
     // Fetch the complete conversation with users

@@ -245,12 +245,9 @@ export async function PATCH(request: NextRequest) {
           },
         });
         
-        await prisma.conversationUser.create({
-          data: { userId: session.user.id, conversationId: conversation.id },
-        });
-        await prisma.conversationUser.create({
-          data: { userId: chatRequest.senderId, conversationId: conversation.id },
-        });
+        // Use raw SQL to avoid schema mismatch
+        await prisma.$executeRaw`INSERT INTO "ConversationUser" (id, "userId", "conversationId", "joinedAt", role) VALUES (${crypto.randomUUID()}, ${session.user.id}, ${conversation.id}, NOW(), 'member')`;
+        await prisma.$executeRaw`INSERT INTO "ConversationUser" (id, "userId", "conversationId", "joinedAt", role) VALUES (${crypto.randomUUID()}, ${chatRequest.senderId}, ${conversation.id}, NOW(), 'member')`;
       }
     }
 
