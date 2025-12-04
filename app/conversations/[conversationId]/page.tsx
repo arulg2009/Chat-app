@@ -45,11 +45,11 @@ import {
   ImageViewer,
   MessageSearch,
   ForwardMessageDialog,
-  UserProfileDialog,
+  ContactInfoPanel,
+  CallScreen,
 } from "@/components/chat";
 import { VoiceRecorder, VoiceMessagePlayer } from "@/components/chat/voice-message";
 import { cn } from "@/lib/utils";
-import { useRealtime } from "@/lib/realtime";
 
 interface Message {
   id: string;
@@ -119,12 +119,15 @@ export default function ConversationPage() {
   const [uploadingFile, setUploadingFile] = useState(false);
   const [isRecordingVoice, setIsRecordingVoice] = useState(false);
   const [sendingVoice, setSendingVoice] = useState(false);
-  // New chat options state
+  // Chat options state
   const [showProfileDialog, setShowProfileDialog] = useState(false);
+  const [showContactInfo, setShowContactInfo] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
+  // Call state
+  const [activeCall, setActiveCall] = useState<{ type: "voice" | "video" } | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -195,7 +198,20 @@ export default function ConversationPage() {
       if (res.ok) {
         const data = await res.json();
         if (data.conversation) {
-          setConversation({ ...data.conversation, messages: data.messages || [] });
+          // Merge with optimistic messages (temp-*) to prevent disappearing
+          setConversation(prev => {
+            const serverMessages = data.messages || [];
+            // Keep any temp messages that aren't yet confirmed
+            const tempMessages = prev?.messages.filter(m => m.id.startsWith('temp-')) || [];
+            // Merge: server messages + temp messages not yet in server response
+            const serverIds = new Set(serverMessages.map((m: Message) => m.id));
+            const mergedMessages = [
+              ...serverMessages,
+              ...tempMessages.filter(m => !serverIds.has(m.id))
+            ].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+            
+            return { ...data.conversation, messages: mergedMessages };
+          });
         }
         setLoading(false);
       } else if (res.status === 404) {
@@ -261,13 +277,15 @@ export default function ConversationPage() {
   };
 
   const handleVoiceCall = () => {
-    // Placeholder for voice call functionality
-    alert("Voice calls coming soon! 📞");
+    setActiveCall({ type: "voice" });
   };
 
   const handleVideoCall = () => {
-    // Placeholder for video call functionality
-    alert("Video calls coming soon! 📹");
+    setActiveCall({ type: "video" });
+  };
+
+  const handleEndCall = () => {
+    setActiveCall(null);
   };
 
   const updateTypingStatus = async (typing: boolean) => {
@@ -562,7 +580,20 @@ export default function ConversationPage() {
   const currentUserId = session.user.id;
 
   return (
-    <div className="h-screen flex flex-col bg-background">
+    <div className="h-[100dvh] flex flex-col bg-background overflow-hidden">
+      {/* Call Screen */}
+      {activeCall && otherUser && (
+        <CallScreen
+          user={{
+            id: otherUser.id,
+            name: otherUser.name,
+            image: otherUser.image,
+          }}
+          callType={activeCall.type}
+          onEnd={handleEndCall}
+        />
+      )}
+
       {/* Delete Confirmation Dialog */}
       {showDeleteConfirm && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
@@ -633,22 +664,27 @@ export default function ConversationPage() {
         </div>
       )}
 
-      {/* User Profile Dialog */}
-      <UserProfileDialog
+      {/* Contact Info Panel */}
+      <ContactInfoPanel
         user={otherUser ? {
           id: otherUser.id,
           name: otherUser.name,
           image: otherUser.image,
           status: otherUser.status,
         } : null}
-        isOpen={showProfileDialog}
-        onClose={() => setShowProfileDialog(false)}
+        conversationId={conversationId}
+        isOpen={showContactInfo}
+        onClose={() => setShowContactInfo(false)}
         onCall={handleVoiceCall}
         onVideoCall={handleVideoCall}
         onMute={handleMuteChat}
+        onClearChat={() => setShowClearConfirm(true)}
+        onDeleteChat={() => setShowDeleteConfirm(true)}
         isMuted={isMuted}
       />
 
+      {/* Main Chat Container */}
+      <div className="flex-1 flex flex-col min-h-0">
       {/* Header */}
       <header className="h-16 sm:h-14 px-2 sm:px-4 pt-2 sm:pt-0 flex items-center gap-2 sm:gap-3 border-b bg-card shrink-0">
         <Button
@@ -660,9 +696,9 @@ export default function ConversationPage() {
           <ArrowLeft className="w-6 h-6 sm:w-5 sm:h-5" />
         </Button>
 
-        {/* Clickable Avatar - Opens Profile */}
+        {/* Clickable Avatar - Opens Contact Info Panel */}
         <button 
-          onClick={() => setShowProfileDialog(true)}
+          onClick={() => setShowContactInfo(true)}
           className="shrink-0 touch-manipulation hover:opacity-80 transition-opacity"
         >
           <Avatar className="w-11 h-11 sm:w-10 sm:h-10">
@@ -673,9 +709,9 @@ export default function ConversationPage() {
           </Avatar>
         </button>
 
-        {/* Clickable Name - Opens Profile */}
+        {/* Clickable Name - Opens Contact Info Panel */}
         <button 
-          onClick={() => setShowProfileDialog(true)}
+          onClick={() => setShowContactInfo(true)}
           className="flex-1 min-w-0 text-left touch-manipulation hover:opacity-80 transition-opacity"
         >
           <h1 className="font-semibold truncate text-base">{otherUser?.name || "Unknown"}</h1>
@@ -709,15 +745,15 @@ export default function ConversationPage() {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56">
-              {/* View Profile */}
-              <DropdownMenuItem onClick={() => setShowProfileDialog(true)} className="h-11 gap-3">
+              {/* View Contact Info */}
+              <DropdownMenuItem onClick={() => setShowContactInfo(true)} className="h-11 gap-3">
                 <Avatar className="w-6 h-6">
                   <AvatarImage src={otherUser?.image || undefined} />
                   <AvatarFallback className="text-xs">
                     {getInitials(otherUser?.name || null)}
                   </AvatarFallback>
                 </Avatar>
-                View profile
+                Contact info
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               {/* Call Options - Mobile only */}
@@ -1034,6 +1070,7 @@ export default function ConversationPage() {
           </div>
         )}
       </div>
+      </div> {/* End Main Chat Container */}
 
       {/* Search dialog */}
       {showSearch && (
