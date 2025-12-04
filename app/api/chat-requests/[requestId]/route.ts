@@ -76,23 +76,43 @@ export async function PATCH(
 
     // Use transaction for faster atomic updates
     if (action === 'accept') {
-      await prisma.$transaction([
-        prisma.chatRequest.update({
+      // First check if conversation already exists
+      const existingConversation = await prisma.conversation.findFirst({
+        where: {
+          isGroup: false,
+          AND: [
+            { users: { some: { userId: chatRequest.senderId } } },
+            { users: { some: { userId: chatRequest.receiverId } } },
+          ],
+        },
+      });
+
+      if (existingConversation) {
+        // Just update the request, conversation already exists
+        await prisma.chatRequest.update({
           where: { id: requestId },
           data: { status: 'accepted', respondedAt: new Date() },
-        }),
-        prisma.conversation.create({
-          data: {
-            isGroup: false,
-            users: {
-              create: [
-                { userId: chatRequest.senderId },
-                { userId: chatRequest.receiverId },
-              ],
+        });
+      } else {
+        // Create conversation in transaction
+        await prisma.$transaction([
+          prisma.chatRequest.update({
+            where: { id: requestId },
+            data: { status: 'accepted', respondedAt: new Date() },
+          }),
+          prisma.conversation.create({
+            data: {
+              isGroup: false,
+              users: {
+                create: [
+                  { userId: chatRequest.senderId },
+                  { userId: chatRequest.receiverId },
+                ],
+              },
             },
-          },
-        }),
-      ]);
+          }),
+        ]);
+      }
     } else {
       await prisma.chatRequest.update({
         where: { id: requestId },

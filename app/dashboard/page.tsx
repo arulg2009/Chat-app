@@ -265,6 +265,9 @@ export default function DashboardPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action }),
       });
+      
+      const data = await res.json();
+      
       if (res.ok && action === "accept") {
         // Refresh conversations in background
         fetch("/api/conversations").then(async (convRes) => {
@@ -273,11 +276,14 @@ export default function DashboardPage() {
       } else if (!res.ok && requestToProcess) {
         // Rollback on error
         setChatRequests(prev => [...prev, requestToProcess]);
+        console.error("Error handling request:", data.error || "Unknown error");
+        alert(data.error || "Failed to process request");
       }
     } catch (e) {
       // Rollback on error
       if (requestToProcess) setChatRequests(prev => [...prev, requestToProcess]);
       console.error("Error handling request:", e);
+      alert("Failed to process request. Please try again.");
     }
   };
 
@@ -296,6 +302,9 @@ export default function DashboardPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ receiverId: userId }),
       });
+      
+      const data = await res.json();
+      
       if (!res.ok) {
         // Rollback on error
         setSentRequests(prev => {
@@ -303,6 +312,26 @@ export default function DashboardPage() {
           newSet.delete(userId);
           return newSet;
         });
+        console.error("Error sending request:", data.error || "Unknown error");
+        alert(data.error || "Failed to send request");
+      } else {
+        // Refresh sent requests list
+        const sentRes = await fetch("/api/chat-requests?type=sent");
+        if (sentRes.ok) {
+          const sentData = await sentRes.json();
+          const sentUserIds = new Set<string>();
+          const pendingSentRequests: SentRequest[] = [];
+          if (Array.isArray(sentData)) {
+            sentData.forEach((r: any) => {
+              if (r.status === "pending") {
+                sentUserIds.add(r.receiverId);
+                pendingSentRequests.push(r);
+              }
+            });
+          }
+          setSentRequests(sentUserIds);
+          setSentRequestsList(pendingSentRequests);
+        }
       }
     } catch (e) {
       // Rollback on error
@@ -312,6 +341,7 @@ export default function DashboardPage() {
         return newSet;
       });
       console.error("Error sending request:", e);
+      alert("Failed to send request. Please try again.");
     } finally {
       setSendingRequest(null);
     }
