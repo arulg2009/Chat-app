@@ -5,6 +5,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { cn } from "@/lib/utils";
 import {
   X,
   Phone,
@@ -112,7 +113,7 @@ export function ContactInfoPanel({
     }
   };
 
-  if (!user || !isOpen) return null;
+  if (!user) return null;
 
   const getInitials = (name: string | null) =>
     name
@@ -152,12 +153,20 @@ export function ContactInfoPanel({
     <>
       {/* Backdrop for mobile */}
       <div 
-        className="fixed inset-0 bg-black/50 z-40 sm:hidden" 
+        className={cn(
+          "fixed inset-0 bg-black/50 z-40 transition-opacity",
+          isOpen ? "opacity-100" : "opacity-0 pointer-events-none"
+        )}
         onClick={onClose}
       />
       
       {/* Panel */}
-      <div className="fixed inset-0 sm:inset-auto sm:relative w-full sm:w-80 lg:w-96 bg-background border-l z-50 sm:z-auto flex flex-col overflow-hidden">
+      <div 
+        className={cn(
+          "fixed top-0 right-0 bottom-0 w-full sm:w-80 lg:w-96 bg-background border-l z-50 flex flex-col overflow-hidden transition-transform duration-300 ease-in-out",
+          isOpen ? "translate-x-0" : "translate-x-full"
+        )}
+      >
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b shrink-0">
           <h2 className="font-semibold">Contact Info</h2>
