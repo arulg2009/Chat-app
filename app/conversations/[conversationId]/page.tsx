@@ -21,11 +21,20 @@ import {
   Check,
   Mic,
   X,
+  Phone,
+  Video,
+  Trash2,
+  VolumeX,
+  Volume2,
+  Ban,
+  Flag,
+  AlertTriangle,
 } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { EmojiPicker } from "@/components/ui/emoji-picker";
@@ -36,6 +45,7 @@ import {
   ImageViewer,
   MessageSearch,
   ForwardMessageDialog,
+  UserProfileDialog,
 } from "@/components/chat";
 import { VoiceRecorder, VoiceMessagePlayer } from "@/components/chat/voice-message";
 import { cn } from "@/lib/utils";
@@ -109,6 +119,12 @@ export default function ConversationPage() {
   const [uploadingFile, setUploadingFile] = useState(false);
   const [isRecordingVoice, setIsRecordingVoice] = useState(false);
   const [sendingVoice, setSendingVoice] = useState(false);
+  // New chat options state
+  const [showProfileDialog, setShowProfileDialog] = useState(false);
+  const [isMuted, setIsMuted] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [actionLoading, setActionLoading] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -189,6 +205,69 @@ export default function ConversationPage() {
       console.error("Error fetching conversation:", err);
       setLoading(false);
     }
+  };
+
+  // Chat action handlers
+  const handleDeleteChat = async () => {
+    setActionLoading(true);
+    try {
+      const res = await fetch(`/api/conversations/${conversationId}`, {
+        method: "DELETE",
+      });
+      if (res.ok) {
+        router.push("/dashboard");
+      }
+    } catch (err) {
+      console.error("Error deleting chat:", err);
+    } finally {
+      setActionLoading(false);
+      setShowDeleteConfirm(false);
+    }
+  };
+
+  const handleClearChat = async () => {
+    setActionLoading(true);
+    try {
+      const res = await fetch(`/api/conversations/${conversationId}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "clear" }),
+      });
+      if (res.ok) {
+        // Clear messages locally
+        setConversation(prev => prev ? { ...prev, messages: [] } : null);
+      }
+    } catch (err) {
+      console.error("Error clearing chat:", err);
+    } finally {
+      setActionLoading(false);
+      setShowClearConfirm(false);
+    }
+  };
+
+  const handleMuteChat = async () => {
+    try {
+      const res = await fetch(`/api/conversations/${conversationId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "mute", value: !isMuted }),
+      });
+      if (res.ok) {
+        setIsMuted(!isMuted);
+      }
+    } catch (err) {
+      console.error("Error muting chat:", err);
+    }
+  };
+
+  const handleVoiceCall = () => {
+    // Placeholder for voice call functionality
+    alert("Voice calls coming soon! 📞");
+  };
+
+  const handleVideoCall = () => {
+    // Placeholder for video call functionality
+    alert("Video calls coming soon! 📹");
   };
 
   const updateTypingStatus = async (typing: boolean) => {
@@ -484,6 +563,92 @@ export default function ConversationPage() {
 
   return (
     <div className="h-screen flex flex-col bg-background">
+      {/* Delete Confirmation Dialog */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-card rounded-xl p-5 max-w-sm w-full shadow-lg animate-in zoom-in-95 duration-200">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-2 rounded-full bg-red-100 dark:bg-red-900/30">
+                <AlertTriangle className="w-5 h-5 text-red-600" />
+              </div>
+              <h3 className="font-semibold">Delete Chat?</h3>
+            </div>
+            <p className="text-sm text-muted-foreground mb-5">
+              This will delete the chat from your list. The other person will still have their copy.
+            </p>
+            <div className="flex gap-3">
+              <Button 
+                variant="outline" 
+                className="flex-1" 
+                onClick={() => setShowDeleteConfirm(false)}
+                disabled={actionLoading}
+              >
+                Cancel
+              </Button>
+              <Button 
+                variant="destructive" 
+                className="flex-1"
+                onClick={handleDeleteChat}
+                disabled={actionLoading}
+              >
+                {actionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Delete"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Clear Chat Confirmation Dialog */}
+      {showClearConfirm && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-card rounded-xl p-5 max-w-sm w-full shadow-lg animate-in zoom-in-95 duration-200">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-2 rounded-full bg-orange-100 dark:bg-orange-900/30">
+                <Trash2 className="w-5 h-5 text-orange-600" />
+              </div>
+              <h3 className="font-semibold">Clear Chat?</h3>
+            </div>
+            <p className="text-sm text-muted-foreground mb-5">
+              This will clear all messages from your view. The other person will still see their messages.
+            </p>
+            <div className="flex gap-3">
+              <Button 
+                variant="outline" 
+                className="flex-1" 
+                onClick={() => setShowClearConfirm(false)}
+                disabled={actionLoading}
+              >
+                Cancel
+              </Button>
+              <Button 
+                variant="destructive" 
+                className="flex-1"
+                onClick={handleClearChat}
+                disabled={actionLoading}
+              >
+                {actionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Clear"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* User Profile Dialog */}
+      <UserProfileDialog
+        user={otherUser ? {
+          id: otherUser.id,
+          name: otherUser.name,
+          image: otherUser.image,
+          status: otherUser.status,
+        } : null}
+        isOpen={showProfileDialog}
+        onClose={() => setShowProfileDialog(false)}
+        onCall={handleVoiceCall}
+        onVideoCall={handleVideoCall}
+        onMute={handleMuteChat}
+        isMuted={isMuted}
+      />
+
       {/* Header */}
       <header className="h-16 sm:h-14 px-2 sm:px-4 pt-2 sm:pt-0 flex items-center gap-2 sm:gap-3 border-b bg-card shrink-0">
         <Button
@@ -495,14 +660,24 @@ export default function ConversationPage() {
           <ArrowLeft className="w-6 h-6 sm:w-5 sm:h-5" />
         </Button>
 
-        <Avatar className="w-11 h-11 sm:w-10 sm:h-10 shrink-0">
-          <AvatarImage src={otherUser?.image || undefined} />
-          <AvatarFallback className="bg-gradient-to-br from-blue-500 to-indigo-600 text-white text-sm">
-            {getInitials(otherUser?.name || null)}
-          </AvatarFallback>
-        </Avatar>
+        {/* Clickable Avatar - Opens Profile */}
+        <button 
+          onClick={() => setShowProfileDialog(true)}
+          className="shrink-0 touch-manipulation hover:opacity-80 transition-opacity"
+        >
+          <Avatar className="w-11 h-11 sm:w-10 sm:h-10">
+            <AvatarImage src={otherUser?.image || undefined} />
+            <AvatarFallback className="bg-gradient-to-br from-blue-500 to-indigo-600 text-white text-sm">
+              {getInitials(otherUser?.name || null)}
+            </AvatarFallback>
+          </Avatar>
+        </button>
 
-        <div className="flex-1 min-w-0">
+        {/* Clickable Name - Opens Profile */}
+        <button 
+          onClick={() => setShowProfileDialog(true)}
+          className="flex-1 min-w-0 text-left touch-manipulation hover:opacity-80 transition-opacity"
+        >
           <h1 className="font-semibold truncate text-base">{otherUser?.name || "Unknown"}</h1>
           <p className="text-xs text-muted-foreground">
             {otherUser?.status === "online" ? (
@@ -511,21 +686,71 @@ export default function ConversationPage() {
               "Offline"
             )}
           </p>
-        </div>
+        </button>
 
         <div className="flex items-center gap-0.5 sm:gap-1">
+          {/* Video Call Button */}
+          <Button variant="ghost" size="icon" onClick={handleVideoCall} className="h-11 w-11 touch-manipulation hidden sm:flex">
+            <Video className="w-5 h-5" />
+          </Button>
+          {/* Voice Call Button */}
+          <Button variant="ghost" size="icon" onClick={handleVoiceCall} className="h-11 w-11 touch-manipulation hidden sm:flex">
+            <Phone className="w-5 h-5" />
+          </Button>
+          {/* Search Button */}
           <Button variant="ghost" size="icon" onClick={() => setShowSearch(true)} className="h-11 w-11 touch-manipulation">
             <Search className="w-5 h-5" />
           </Button>
+          {/* Options Menu */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon" className="h-11 w-11 touch-manipulation">
                 <MoreVertical className="w-5 h-5" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => router.push("/dashboard")} className="h-11">
-                Back to Chats
+            <DropdownMenuContent align="end" className="w-56">
+              {/* View Profile */}
+              <DropdownMenuItem onClick={() => setShowProfileDialog(true)} className="h-11 gap-3">
+                <Avatar className="w-6 h-6">
+                  <AvatarImage src={otherUser?.image || undefined} />
+                  <AvatarFallback className="text-xs">
+                    {getInitials(otherUser?.name || null)}
+                  </AvatarFallback>
+                </Avatar>
+                View profile
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              {/* Call Options - Mobile only */}
+              <DropdownMenuItem onClick={handleVoiceCall} className="h-11 gap-3 sm:hidden">
+                <Phone className="w-4 h-4" />
+                Voice call
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleVideoCall} className="h-11 gap-3 sm:hidden">
+                <Video className="w-4 h-4" />
+                Video call
+              </DropdownMenuItem>
+              <DropdownMenuSeparator className="sm:hidden" />
+              {/* Mute */}
+              <DropdownMenuItem onClick={handleMuteChat} className="h-11 gap-3">
+                {isMuted ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
+                {isMuted ? "Unmute notifications" : "Mute notifications"}
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              {/* Clear Chat */}
+              <DropdownMenuItem onClick={() => setShowClearConfirm(true)} className="h-11 gap-3">
+                <Trash2 className="w-4 h-4" />
+                Clear chat
+              </DropdownMenuItem>
+              {/* Delete Chat */}
+              <DropdownMenuItem onClick={() => setShowDeleteConfirm(true)} className="h-11 gap-3 text-red-600 focus:text-red-600">
+                <Ban className="w-4 h-4" />
+                Delete chat
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              {/* Report */}
+              <DropdownMenuItem className="h-11 gap-3 text-red-600 focus:text-red-600">
+                <Flag className="w-4 h-4" />
+                Report
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

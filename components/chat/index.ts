@@ -5,3 +5,4 @@ export { TypingIndicator, TypingIndicatorBubble } from "./typing-indicator";
 export { ImageViewer } from "./image-viewer";
 export { MessageSearch } from "./message-search";
 export { ForwardMessageDialog } from "./forward-dialog";
+export { UserProfileDialog } from "./user-profile-dialog";

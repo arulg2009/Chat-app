@@ -79,6 +79,10 @@ model User {
   groupMessageReactions    GroupMessageReaction[]
   groupMessageReadReceipts GroupMessageReadReceipt[]
   groupTypingIndicators    GroupTypingIndicator[]
+
+  @@index([status])
+  @@index([lastSeen])
+  @@index([email])
 }
 
 model VerificationToken {
@@ -117,12 +121,17 @@ model Conversation {
 }
 
 model ConversationUser {
-  id             String   @id @default(cuid())
+  id             String    @id @default(cuid())
   userId         String
   conversationId String
-  joinedAt       DateTime @default(now())
-  role           String   @default("member") // admin, member
+  joinedAt       DateTime  @default(now())
+  role           String    @default("member") // admin, member
   mutedUntil     DateTime?
+  isMuted        Boolean   @default(false)
+  isArchived     Boolean   @default(false)
+  isPinned       Boolean   @default(false)
+  clearedAt      DateTime? // Messages before this time won't be shown
+  isBlocked      Boolean   @default(false)
 
   user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
@@ -130,6 +139,8 @@ model ConversationUser {
   @@unique([userId, conversationId])
   @@index([userId])
   @@index([conversationId])
+  @@index([userId, isArchived]) // For filtering archived chats
+  @@index([userId, isPinned])   // For pinned chats at top
 }
 
 model Message {
@@ -157,6 +168,7 @@ model Message {
   @@index([conversationId])
   @@index([senderId])
   @@index([createdAt])
+  @@index([conversationId, createdAt]) // Composite for fast message loading
 }
 
 model MessageReaction {
