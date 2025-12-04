@@ -14,6 +14,9 @@ import {
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { ChatListSkeleton, GroupCardSkeleton, UserListSkeleton } from "@/components/ui/skeleton";
+import { IncomingCallNotification, ActiveCallScreen } from "@/components/chat";
+import { useIncomingCalls } from "@/lib/use-incoming-calls";
+import { Call } from "@/lib/use-webrtc";
 
 interface Conversation {
   id: string;
@@ -105,6 +108,26 @@ export default function DashboardPage() {
   const [deletingAccount, setDeletingAccount] = useState(false);
   const [deleteError, setDeleteError] = useState("");
   const [isAdmin, setIsAdmin] = useState(false);
+  
+  // Incoming call handling
+  const { incomingCall, rejectIncomingCall, dismissIncomingCall } = useIncomingCalls({
+    enabled: status === "authenticated",
+    pollInterval: 3000,
+  });
+  const [answeringCall, setAnsweringCall] = useState<Call | null>(null);
+
+  const handleAnswerCall = (call: Call) => {
+    dismissIncomingCall();
+    setAnsweringCall(call);
+  };
+
+  const handleRejectCall = async () => {
+    await rejectIncomingCall();
+  };
+
+  const handleCallEnded = () => {
+    setAnsweringCall(null);
+  };
 
   useEffect(() => {
     if (status === "authenticated") {
@@ -429,6 +452,24 @@ export default function DashboardPage() {
 
   return (
     <div className="h-screen flex flex-col bg-background">
+      {/* Incoming Call Notification */}
+      {incomingCall && !answeringCall && (
+        <IncomingCallNotification
+          call={incomingCall}
+          onAnswer={() => handleAnswerCall(incomingCall)}
+          onReject={handleRejectCall}
+        />
+      )}
+
+      {/* Active Call Screen */}
+      {answeringCall && (
+        <ActiveCallScreen
+          call={answeringCall}
+          isIncoming={true}
+          onEnd={handleCallEnded}
+        />
+      )}
+
       {/* Header */}
       <header className="h-14 sm:h-16 px-3 sm:px-4 pt-2 sm:pt-0 flex items-center justify-between border-b bg-card shrink-0">
         <div className="flex items-center gap-2 sm:gap-3">

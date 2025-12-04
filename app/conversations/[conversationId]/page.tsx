@@ -47,9 +47,13 @@ import {
   ForwardMessageDialog,
   ContactInfoPanel,
   CallScreen,
+  IncomingCallNotification,
+  ActiveCallScreen,
 } from "@/components/chat";
 import { VoiceRecorder, VoiceMessagePlayer } from "@/components/chat/voice-message";
 import { cn } from "@/lib/utils";
+import { useIncomingCalls } from "@/lib/use-incoming-calls";
+import { Call } from "@/lib/use-webrtc";
 
 interface Message {
   id: string;
@@ -127,7 +131,14 @@ export default function ConversationPage() {
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
   // Call state
-  const [activeCall, setActiveCall] = useState<{ type: "voice" | "video" } | null>(null);
+  const [activeCall, setActiveCall] = useState<{ type: "audio" | "video" } | null>(null);
+  const [answeringCall, setAnsweringCall] = useState<Call | null>(null);
+  
+  // Incoming call handling
+  const { incomingCall, rejectIncomingCall, dismissIncomingCall } = useIncomingCalls({
+    enabled: status === "authenticated",
+    pollInterval: 3000,
+  });
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -277,7 +288,7 @@ export default function ConversationPage() {
   };
 
   const handleVoiceCall = () => {
-    setActiveCall({ type: "voice" });
+    setActiveCall({ type: "audio" });
   };
 
   const handleVideoCall = () => {
@@ -286,6 +297,16 @@ export default function ConversationPage() {
 
   const handleEndCall = () => {
     setActiveCall(null);
+    setAnsweringCall(null);
+  };
+
+  const handleAnswerIncomingCall = (call: Call) => {
+    dismissIncomingCall();
+    setAnsweringCall(call);
+  };
+
+  const handleRejectIncomingCall = async () => {
+    await rejectIncomingCall();
   };
 
   const updateTypingStatus = async (typing: boolean) => {
@@ -581,8 +602,26 @@ export default function ConversationPage() {
 
   return (
     <div className="h-[100dvh] flex flex-col bg-background overflow-hidden">
-      {/* Call Screen */}
-      {activeCall && otherUser && (
+      {/* Incoming Call Notification */}
+      {incomingCall && !answeringCall && !activeCall && (
+        <IncomingCallNotification
+          call={incomingCall}
+          onAnswer={() => handleAnswerIncomingCall(incomingCall)}
+          onReject={handleRejectIncomingCall}
+        />
+      )}
+
+      {/* Answering Incoming Call Screen */}
+      {answeringCall && (
+        <ActiveCallScreen
+          call={answeringCall}
+          isIncoming={true}
+          onEnd={handleEndCall}
+        />
+      )}
+
+      {/* Outgoing Call Screen */}
+      {activeCall && otherUser && !answeringCall && (
         <CallScreen
           user={{
             id: otherUser.id,

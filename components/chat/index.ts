@@ -7,4 +7,4 @@ export { MessageSearch } from "./message-search";
 export { ForwardMessageDialog } from "./forward-dialog";
 export { UserProfileDialog } from "./user-profile-dialog";
 export { ContactInfoPanel } from "./contact-info-panel";
-export { CallScreen, IncomingCallNotification } from "./call-screen";
+export { CallScreen, IncomingCallNotification, ActiveCallScreen } from "./call-screen-webrtc";
