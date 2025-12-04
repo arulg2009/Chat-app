@@ -234,9 +234,73 @@ export async function DELETE(request: Request, { params }: RouteParams) {
       },
     });
 
+    // Send call message to conversation (like WhatsApp)
+    try {
+      // Find or get conversation between the two users
+      const conversation = await prisma.conversation.findFirst({
+        where: {
+          isGroup: false,
+          AND: [
+            { users: { some: { userId: call.initiatorId } } },
+            { users: { some: { userId: call.receiverId } } },
+          ],
+        },
+      });
+
+      if (conversation) {
+        // Create a call message
+        const callMessage = getCallMessage(call.type, status, duration);
+        
+        await prisma.message.create({
+          data: {
+            content: callMessage,
+            type: "call",
+            senderId: session.user.id,
+            conversationId: conversation.id,
+            metadata: {
+              callId: call.id,
+              callType: call.type,
+              callStatus: status,
+              duration: duration,
+              initiatorId: call.initiatorId,
+              receiverId: call.receiverId,
+            },
+          },
+        });
+
+        // Update conversation timestamp
+        await prisma.conversation.update({
+          where: { id: conversation.id },
+          data: { updatedAt: new Date() },
+        });
+      }
+    } catch (msgError) {
+      console.error("Error creating call message:", msgError);
+      // Don't fail the call end if message creation fails
+    }
+
     return NextResponse.json({ call: updatedCall });
   } catch (error) {
     console.error("Error ending call:", error);
     return NextResponse.json({ error: "Failed to end call" }, { status: 500 });
   }
+}
+
+// Helper function to generate call message text
+function getCallMessage(callType: string, status: string, duration: number | null): string {
+  const typeLabel = callType === "video" ? "Video call" : "Voice call";
+  
+  if (status === "ended" && duration) {
+    const mins = Math.floor(duration / 60);
+    const secs = duration % 60;
+    const durationStr = mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
+    return `${typeLabel} • ${durationStr}`;
+  } else if (status === "missed") {
+    return `Missed ${typeLabel.toLowerCase()}`;
+  } else if (status === "rejected") {
+    return `${typeLabel} declined`;
+  } else if (status === "cancelled") {
+    return `${typeLabel} cancelled`;
+  }
+  return typeLabel;
 }

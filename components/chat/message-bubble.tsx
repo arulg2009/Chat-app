@@ -20,6 +20,10 @@ import {
   Smile,
   Download,
   ZoomIn,
+  Phone,
+  Video,
+  PhoneMissed,
+  PhoneOff,
 } from "lucide-react";
 import { MessageReactions, ReactionPicker } from "./message-reactions";
 import { VoiceMessagePlayer } from "./voice-message";
@@ -28,7 +32,7 @@ import { cn } from "@/lib/utils";
 export interface MessageData {
   id: string;
   content: string;
-  type: "text" | "image" | "file" | "audio" | "voice" | "system";
+  type: "text" | "image" | "file" | "audio" | "voice" | "system" | "call";
   senderId: string;
   createdAt: string;
   isEdited?: boolean;
@@ -40,6 +44,12 @@ export interface MessageData {
     fileSize?: number;
     forwardedFrom?: { name: string; groupName?: string };
     mimeType?: string;
+    // Call metadata
+    callId?: string;
+    callType?: string;
+    callStatus?: string;
+    initiatorId?: string;
+    receiverId?: string;
   };
   sender: {
     id: string;
@@ -278,6 +288,41 @@ export function MessageBubble({
                     duration={message.metadata?.duration}
                     isOwn={isOwn}
                   />
+                </div>
+              )}
+
+              {/* Call message */}
+              {message.type === "call" && (
+                <div className="flex items-center gap-3 py-1">
+                  <div className={cn(
+                    "p-2 rounded-full",
+                    message.metadata?.callStatus === "missed" || message.metadata?.callStatus === "rejected"
+                      ? "bg-red-100 dark:bg-red-900/30"
+                      : isOwn ? "bg-white/20" : "bg-green-100 dark:bg-green-900/30"
+                  )}>
+                    {message.metadata?.callStatus === "missed" ? (
+                      <PhoneMissed className={cn(
+                        "w-4 h-4",
+                        isOwn ? "text-red-200" : "text-red-500"
+                      )} />
+                    ) : message.metadata?.callStatus === "rejected" || message.metadata?.callStatus === "cancelled" ? (
+                      <PhoneOff className={cn(
+                        "w-4 h-4",
+                        isOwn ? "text-red-200" : "text-red-500"
+                      )} />
+                    ) : message.metadata?.callType === "video" ? (
+                      <Video className={cn(
+                        "w-4 h-4",
+                        isOwn ? "text-white" : "text-green-600"
+                      )} />
+                    ) : (
+                      <Phone className={cn(
+                        "w-4 h-4",
+                        isOwn ? "text-white" : "text-green-600"
+                      )} />
+                    )}
+                  </div>
+                  <span className="text-sm">{message.content}</span>
                 </div>
               )}
 

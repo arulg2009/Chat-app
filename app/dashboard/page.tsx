@@ -10,7 +10,8 @@ import { Input } from "@/components/ui/input";
 import {
   MessageCircle, Users, Search, Plus, Settings, LogOut, Bell,
   Circle, ChevronRight, Clock, UserPlus, Check, X, Loader2,
-  Hash, Lock, Globe, MoreVertical, Trash2, Shield
+  Hash, Lock, Globe, MoreVertical, Trash2, Shield, Phone,
+  PhoneIncoming, PhoneOutgoing, PhoneMissed, Video
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { ChatListSkeleton, GroupCardSkeleton, UserListSkeleton } from "@/components/ui/skeleton";
@@ -83,10 +84,25 @@ interface User {
   lastSeen: string;
 }
 
+interface CallHistory {
+  id: string;
+  type: string;
+  status: string;
+  isOutgoing: boolean;
+  duration: number | null;
+  startedAt: string;
+  endedAt: string | null;
+  otherUser: {
+    id: string;
+    name: string | null;
+    image: string | null;
+  };
+}
+
 export default function DashboardPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<"chats" | "groups" | "users" | "requests">("chats");
+  const [activeTab, setActiveTab] = useState<"chats" | "calls" | "groups" | "users" | "requests">("chats");
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [groups, setGroups] = useState<Group[]>([]);
   const [chatRequests, setChatRequests] = useState<ChatRequest[]>([]);
@@ -103,6 +119,8 @@ export default function DashboardPage() {
   const [sentRequests, setSentRequests] = useState<Set<string>>(new Set());
   const [sentRequestsList, setSentRequestsList] = useState<SentRequest[]>([]);
   const [requestsSubTab, setRequestsSubTab] = useState<"received" | "sent">("received");
+  const [callsSubTab, setCallsSubTab] = useState<"all" | "missed">("all");
+  const [callHistory, setCallHistory] = useState<CallHistory[]>([]);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deletePassword, setDeletePassword] = useState("");
   const [deletingAccount, setDeletingAccount] = useState(false);
@@ -188,12 +206,13 @@ export default function DashboardPage() {
 
   const fetchData = async () => {
     try {
-      const [convRes, groupsRes, requestsRes, usersRes, sentReqRes] = await Promise.all([
+      const [convRes, groupsRes, requestsRes, usersRes, sentReqRes, callsRes] = await Promise.all([
         fetch("/api/conversations"),
         fetch("/api/groups"),
         fetch("/api/chat-requests?type=received"),
         fetch("/api/users"),
         fetch("/api/chat-requests?type=sent"),
+        fetch("/api/calls/history"),
       ]);
 
       if (convRes.ok) setConversations(await convRes.json());
@@ -223,6 +242,10 @@ export default function DashboardPage() {
         }
         setSentRequests(sentUserIds);
         setSentRequestsList(pendingSentRequests);
+      }
+      if (callsRes.ok) {
+        const callsData = await callsRes.json();
+        setCallHistory(callsData.calls || []);
       }
     } catch (e) {
       console.error("Error fetching data:", e);
@@ -574,6 +597,7 @@ export default function DashboardPage() {
       <div className="flex border-b bg-card px-2 sm:px-4 overflow-x-auto scrollbar-none">
         {[
           { id: "chats", label: "Chats", icon: MessageCircle, count: 0 },
+          { id: "calls", label: "Calls", icon: Phone, count: callHistory.filter(c => c.status === "missed").length },
           { id: "groups", label: "Groups", icon: Users, count: 0 },
           { id: "users", label: "Users", icon: Search, count: 0 },
           { id: "requests", label: "Requests", icon: UserPlus, count: chatRequests.length },
@@ -653,6 +677,117 @@ export default function DashboardPage() {
                 );
               })
             )}
+          </div>
+        )}
+
+        {/* Calls Tab */}
+        {activeTab === "calls" && (
+          <div>
+            {/* Sub-tabs */}
+            <div className="flex border-b bg-muted/30">
+              {[
+                { id: "all", label: "All" },
+                { id: "missed", label: "Missed" },
+              ].map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => setCallsSubTab(tab.id as "all" | "missed")}
+                  className={`flex-1 py-3 text-sm font-medium transition-colors ${
+                    callsSubTab === tab.id
+                      ? "text-primary border-b-2 border-primary"
+                      : "text-muted-foreground"
+                  }`}
+                >
+                  {tab.label}
+                  {tab.id === "missed" && callHistory.filter(c => c.status === "missed").length > 0 && (
+                    <Badge variant="destructive" className="ml-1.5 text-[10px] px-1.5 py-0">
+                      {callHistory.filter(c => c.status === "missed").length}
+                    </Badge>
+                  )}
+                </button>
+              ))}
+            </div>
+
+            <div className="divide-y">
+              {(() => {
+                const filteredCalls = callHistory.filter(call => {
+                  if (callsSubTab === "missed") return call.status === "missed";
+                  return true;
+                }).filter(call => {
+                  if (!searchQuery) return true;
+                  return call.otherUser.name?.toLowerCase().includes(searchQuery.toLowerCase());
+                });
+
+                if (filteredCalls.length === 0) {
+                  return (
+                    <div className="p-8 text-center">
+                      <Phone className="w-12 h-12 mx-auto text-muted-foreground/50 mb-3" />
+                      <p className="text-sm text-muted-foreground">
+                        {callsSubTab === "missed" ? "No missed calls" : "No recent calls"}
+                      </p>
+                    </div>
+                  );
+                }
+
+                return filteredCalls.map((call) => (
+                  <div
+                    key={call.id}
+                    className="flex items-center gap-3 px-3 sm:px-4 py-4 hover:bg-muted/50 transition-colors"
+                  >
+                    <div className="relative flex-shrink-0">
+                      <Avatar className="w-12 h-12 sm:w-14 sm:h-14">
+                        <AvatarImage src={call.otherUser.image || undefined} />
+                        <AvatarFallback className="bg-gradient-to-br from-blue-500 to-indigo-600 text-white text-sm">
+                          {getInitials(call.otherUser.name || null)}
+                        </AvatarFallback>
+                      </Avatar>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-medium truncate">{call.otherUser.name || "Unknown"}</h3>
+                      </div>
+                      <div className="flex items-center gap-1.5 mt-0.5">
+                        {call.isOutgoing ? (
+                          <PhoneOutgoing className={`w-3.5 h-3.5 ${call.status === "missed" ? "text-red-500" : "text-green-500"}`} />
+                        ) : (
+                          <PhoneIncoming className={`w-3.5 h-3.5 ${call.status === "missed" ? "text-red-500" : "text-green-500"}`} />
+                        )}
+                        <span className={`text-sm ${call.status === "missed" ? "text-red-500" : "text-muted-foreground"}`}>
+                          {call.isOutgoing ? "Outgoing" : "Incoming"} {call.type} call
+                          {call.status === "missed" && " (missed)"}
+                        </span>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        {new Date(call.startedAt).toLocaleString()}
+                        {call.duration && ` • ${Math.floor(call.duration / 60)}:${(call.duration % 60).toString().padStart(2, '0')}`}
+                      </p>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-10 w-10"
+                        onClick={() => {
+                          // Find conversation with this user and initiate call
+                          const conv = conversations.find(c => 
+                            c.users.some(u => u.user.id === call.otherUser.id)
+                          );
+                          if (conv) {
+                            router.push(`/conversations/${conv.id}?call=${call.type}`);
+                          }
+                        }}
+                      >
+                        {call.type === "video" ? (
+                          <Video className="w-5 h-5 text-primary" />
+                        ) : (
+                          <Phone className="w-5 h-5 text-primary" />
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+                ));
+              })()}
+            </div>
           </div>
         )}
 
